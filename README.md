@@ -1,25 +1,27 @@
-# DSH 小鲸鱼记账挂件（DeepSeek Balance Whale Widget）
+# DSH 小鲸鱼记账挂件 Pro（dsh-whale-widget-pro）
 
 ![DSH 小鲸鱼记账挂件](assets/DSH2.png)
 
 DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图 + DeepSeek API 余额 + 今日已用 + 每轮对话消耗，并且**泡泡内容可以完全自定义**（点击序列、模块化排版、并列加权出泡、随机语句/随机图片）。标准 DSH bundle 插件，`dsh plugin` 一键安装，无需任何会话令牌。
 
-> ⚠️ **Codex 版小鲸鱼已迁至独立仓库** → <https://github.com/Yang-huai406/Codex-Whale-Public>（**已安装用户无需重装**；详见下方「两条分支怎么选」）
-<!-- 迁移横幅（v0.3.19 起）：迁移稳定后（约 2026-11，或发过 1–2 个版本）可只删这一行 blockquote，保留下方分支表与「致谢」——别让它长期占着第一屏 -->
+> 🐋 **这是 [dsh-whale-widget](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget) 的 fork**，鲸鱼形象与全部交互沿用上游（MIT）。
+> 相对上游主要多了两类**订阅套餐**的监控：**Command Code**（GOAT / Go / Pro / Max / Team，美元余额 + 5h/周窗口 + 档位）与 **OpenCode Go**（5h / 周 / 月窗口）；另有多窗口下拉按模板动态生成、`used/cap` 型厂商的窗口消费金额变量。
+> 内部数据文件（`~/.dsh/.dshw-*.json`）、DOM class（`dshwv-*`）、路由（`/dsh-whale/*`）**沿用上游命名**，所以角色 / 音效 / 账本可以无缝沿用；但**不要同时启用上游与本插件**（两个包会各挂一只鲸鱼、抢同一份状态）。
+> 改动清单见 [`PROVENANCE.md`](PROVENANCE.md) 末尾「本 fork 的改动」。
 
-## 两条分支怎么选
+## 装在哪里
 
 本仓库现在只维护**一条产品线**（`main`，同一个包同时支持 DSH Web 与官方桌面客户端）。按你要挂在哪里选：
 
 | 你要挂在哪 | 用哪条分支 | 安装方式 |
 |---|---|---|
-| **DSH Web 界面右下角**（就是这个 README 描述的插件） | `main`（默认分支） | `dsh plugin --profile web add dsh-whale-widget`（推荐，装 npm 已发布版）；也可以从本仓库装 `dsh plugin --profile web add github:MeteorNOX/DeepSeek-Balance-Whale-Widget`，但那样装的是 **main 当前状态、不跟随已发布版本** |
+| **DSH Web 界面右下角**（就是这个 README 描述的插件） | `main`（默认分支） | `dsh plugin --profile web add dsh-whale-widget-pro`（推荐，装 npm 已发布版）；也可以从本仓库装 `dsh plugin --profile web add github:<your-github-name>/dsh-whale-widget-pro`，但那样装的是 **main 当前状态、不跟随已发布版本** |
 | **官方桌面客户端（Electron）右下角** | `main`（同一个包） | ⚠️ **不能用** `--profile web`（桌面端读的是 `desktop` profile，CLI 也拒绝 `--profile desktop`）—— 在桌面端会话里**让 DSH 自己装**，见下方「官方桌面端（Electron 客户端）请先看这一节」 |
-| **Codex 桌面应用**（跟随 Codex 窗口、无独立网页） | ⚠️ **已迁出本仓库** | [新仓库](https://github.com/Yang-huai406/Codex-Whale-Public) · [最新版下载](https://github.com/Yang-huai406/Codex-Whale-Public/releases/latest) · **已安装用户无需重装**<br>**Codex 版迁移公告**：本次迁移保留了**开发历史、历代版本与作者贡献**，并清理了旧图片中的非必要元数据（贡献者致谢见文末「致谢」）。后续更新、问题反馈与版本发布都在新仓库；反馈问题时请注明**版本、系统和复现步骤**，勿上传密钥、完整配置或未脱敏日志。 |
 
-⚠️ **两条线互不兼容**：Codex 版不能用 `dsh plugin … add` 装进 DSH 网页，本仓库的插件也不能在 Codex 桌面里运行。
+> ⚠️ **与上游 `dsh-whale-widget` 也不能共存**：两者用同一份状态文件与同一个 `/dsh-whale/*` 路由，同时启用会互相抢。换到本插件前请先 `dsh plugin --profile web remove dsh-whale-widget`（桌面端用 `plugin_manager` 卸载）。
 
-⚠️ **安装方式二选一、别混用**（npm 名 / `github:`）—— 它们是同一个包名，先后安装会并存冲突；已经是 `github:` 装的，要换 npm 名请先 `dsh plugin --profile web remove dsh-whale-widget`。
+
+⚠️ **安装方式二选一、别混用**（npm 名 / `github:`）—— 它们是同一个包名，先后安装会并存冲突；已经是 `github:` 装的，要换 npm 名请先 `dsh plugin --profile web remove dsh-whale-widget-pro`。
 
 ## 特性
 
@@ -80,26 +82,45 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 
 除内置的 DeepSeek 余额外，可在「小鲸鱼记账 → 模型」里添加任意厂商；每个模型独立配置余额预警 / 今日预算 / 额度：
 
-- 🧩 **厂商模板（34 个，选完自动带好凭据名 / 币种 / 接口 / 字段路径 / 事件匹配 / 探活地址）**：
-  - **可直接查到余额或额度**：DeepSeek（内置）、OpenRouter、Kimi / Moonshot（CN / 国际）、阶跃星辰 StepFun、Novita、智谱 GLM Coding Plan（国内 / 国际 z.ai）、Kimi Coding、MiniMax Coding（国内 / 国际）、**OpenCode Go（订阅，5h / 周 / 月三窗口）**、OpenAI 兼容中转站（OneAPI / New API）
+- 🧩 **厂商模板（35 个，选完自动带好凭据名 / 币种 / 接口 / 字段路径 / 事件匹配 / 探活地址）**：
+  - **可直接查到余额或额度**：DeepSeek（内置）、OpenRouter、Kimi / Moonshot（CN / 国际）、阶跃星辰 StepFun、Novita、智谱 GLM Coding Plan（国内 / 国际 z.ai）、Kimi Coding、MiniMax Coding（国内 / 国际）、**OpenCode Go（订阅，5h / 周 / 月三窗口）**、**Command Code（订阅，美元余额 + 5h / 周窗口，自动识别 GOAT / Go / Pro / Max / Team 档位）**、OpenAI 兼容中转站（OneAPI / New API）
   - **官方没有「用 API key 查余额」的接口**（下拉里标注「（无余额接口）」，选完会用 `probeUrl` 探活验证 key，余额显示「—」，今日已用按会话事件估算）：硅基流动（CN / EN）、火山方舟 Ark、OpenAI、Anthropic Claude、Google Gemini、xAI Grok、Groq、Mistral AI、Together AI、Fireworks AI、DeepInfra、Cerebras、阿里云百炼（通义千问）、百度千帆（文心）、腾讯混元、讯飞星火、魔搭 ModelScope、本地模型（Ollama / LM Studio）
   - **全手填**：自定义 HTTP（URL 与字段路径自己写）、Codex（本地会话，无需接口）
 - 🔑 **密钥不落配置**：密钥写入 DSH 官方凭据服务，配置文件里只存**凭据名**（如 `OPENROUTER_API_KEY`）；删除模型会连带清理该模型的额度模块与设置
 - 💰 **余额**：按模板的接口与 JSON 字段路径读取（支持 `a.b[0].c` 与 `scale` 乘数）；点「测试连通性」可先验证 key
 - 📉 **今日已用**：有余额接口时记录观测到的**下降额**（当天首次观测为统计起点，充值等增加额不会冲掉消费），无余额接口的厂商显示本机会话**估算**
 - 🎯 **额度（订阅 / 资源包）**：填总量即可，已用**按 DSH 会话 token 自动累计**（口径 `input + cacheRead + output`，推理 token 已含在 output 内，跨天保留），也可切换手动填写；支持「不重置 / 每日 / 每月」
-- 🧾 **订阅额度接口（`kind:'quota'` 模板）**：直接读厂商官方接口的「窗口已用% + 重置时间」，与上面按会话统计的额度互补。**支持一个接口返回多个窗口**（目前 OpenCode Go 为 5h / 周 / 月三窗口），逐窗口展示已用百分比与各自的紧凑重置倒计时；模板用 `quota.json.windows` 描述各窗口的字段路径
+- 🧾 **订阅额度接口（`kind:'quota'` 模板）**：直接读厂商官方接口的「窗口已用% + 重置时间」，与上面按会话统计的额度互补。**支持一个接口返回多个窗口**（OpenCode Go 为 5h / 周 / 月三窗口，Command Code 为 5h / 周两窗口），逐窗口展示已用百分比与各自的紧凑重置倒计时；模板用 `quota.json.windows` 描述各窗口的字段路径，每条窗口可以写 `percent`，也可以写 `used` + `cap`（厂商直接给金额用量时由插件换算百分比，并把绝对值保留下来）。模块编辑器里的「显示样式」窗口下拉是**按模板动态生成**的 —— 两窗口厂商不会多出一个永远空着的「月」
+- 💵 **窗口消费金额**：`used` + `cap` 型厂商（目前是 Command Code）除了百分比，还能显示本窗口真实花掉的金额与上限：模板变量 `{plan_money}`（`$ 0.44 / $ 14.00`）、`{plan_spent}`、`{plan_cap}`；其他厂商这三个变量显示 `--`
 - 💱 **单价（可选）**：位置在「密钥 / 接口」面板 → 展开「接口与字段（高级）」→「单价（可选）」。每个模型可自填单价 —— **缓存命中 / 未命中输入 / 输出**，单位是「币种 / 百万 token」；币种支持人民币（CNY）与美元（USD），**选美元时必须填汇率（元/USD）**；记账与账本**统一按人民币结算**（美元单价会按汇率折算）；单价**不分峰谷**（两个时段同价）。留空则沿用内置价目表（DeepSeek flash / pro）。注意：**内置 DeepSeek 不支持自定义单价**（始终用内置峰谷价）；额度单位选「金额（元）」时，已用**只能手动填写**
-- 🫧 **泡泡模块**：每个模型自动获得「余额·<模型名>」与「额度·<模型名>」两个模块，占位符 `{balance}`、`{today}`、`{quota}`、`{quota_used}`、`{quota_left}`、`{quota_total}`、`{quota_reset}`
+- 🫧 **泡泡模块**：每个模型自动获得「余额·<模型名>」与「额度·<模型名>」两个模块，占位符 `{balance}`、`{today}`、`{quota}`、`{quota_used}`、`{quota_left}`、`{quota_total}`、`{quota_reset}`；多窗口订阅厂商另有「额度」模块（`{plan}`、`{plan_left}`、`{plan_reset}`，加上给金额的厂商可用的 `{plan_money}` / `{plan_spent}` / `{plan_cap}`）。**既有余额又有额度**的厂商（Command Code）会同时给出「额度」与「余额」两个模块，两种口径都能挂
 
-> 说明：并非所有厂商都提供「用 API key 查余额」的接口。**硅基流动**的余额接口已被官方下线（[2026-08-11 更新公告](https://api-docs.siliconflow.cn/docs/release-notes/overview)：`/user/info` 自 **2026-08-14** 起停止服务，「后续将适时提供替代 API」，截至发版仍未见替代接口），**火山方舟**的余额 / 用量与**阿里云百炼 / 百度千帆 / 腾讯混元**一样属于各家云平台 AK/SK 签名的 OpenAPI，**OpenAI / Anthropic / Gemini / xAI / Groq / Mistral / Together / Fireworks / DeepInfra / Cerebras** 则根本没有公开的余额查询接口 —— 这些模板统一是「无余额接口 + 探活验证 key」，今日已用按会话事件估算。厂商的**订阅额度**接口（智谱 / Kimi Coding / MiniMax Coding / OpenCode Go）只对订阅套餐账号有效：Token 资源包账号调用智谱接口会返回「当前用户不存在coding plan」，这种情况请用上面的「额度（订阅 / 资源包）」自动统计。
+> 说明：并非所有厂商都提供「用 API key 查余额」的接口。**硅基流动**的余额接口已被官方下线（[2026-08-11 更新公告](https://api-docs.siliconflow.cn/docs/release-notes/overview)：`/user/info` 自 **2026-08-14** 起停止服务，「后续将适时提供替代 API」，截至发版仍未见替代接口），**火山方舟**的余额 / 用量与**阿里云百炼 / 百度千帆 / 腾讯混元**一样属于各家云平台 AK/SK 签名的 OpenAPI，**OpenAI / Anthropic / Gemini / xAI / Groq / Mistral / Together / Fireworks / DeepInfra / Cerebras** 则根本没有公开的余额查询接口 —— 这些模板统一是「无余额接口 + 探活验证 key」，今日已用按会话事件估算。厂商的**订阅额度**接口（智谱 / Kimi Coding / MiniMax Coding / OpenCode Go / Command Code）只对订阅套餐账号有效：Token 资源包账号调用智谱接口会返回「当前用户不存在coding plan」，这种情况请用上面的「额度（订阅 / 资源包）」自动统计。
 >
 > 模板只提供**默认值**：选完模板后可以随意改写接口地址与字段路径；留空的字段会**继续沿用模板默认值**（不会因为留空而失效）。
 
+### 接入 Command Code / OpenCode Go
+
+两者都是「订阅套餐」型厂商，走同一套 `kind:'quota'` 模板，不需要额外插件或脚本：
+
+1. 「小鲸鱼记账 → 模型 → **+ 添加模型（自定义 API）**」
+2. 「厂商模板」选 **Command Code（订阅）** 或 **OpenCode Go（订阅）**；凭据名、币种、接口地址、字段路径会自动带好（之后留空即沿用模板默认值）
+3. 在「密钥」里填该厂商的 API key，点「测试连通性」验证
+4. 保存后泡泡里出现「额度·<模型名>」模块（Command Code 还会多一个「余额·Command Code」模块，两种口径都能挂）
+
+| 厂商 | 凭据名 | 查什么 | 接口 |
+|---|---|---|---|
+| Command Code | `COMMANDCODE_API_KEY` | 余额（USD）、5h 窗口、周窗口、套餐档位 | `GET https://api.commandcode.ai/alpha/billing/credits`，档位另查 `/alpha/billing/subscriptions` |
+| OpenCode Go | `OPENCODE_GO_API_KEY` | 5h / 周 / 月三窗口已用% | `GET https://opencode.ai/zen/go/v1/usage` |
+
+Command Code 的档位由 `subscriptions` 返回的 `planId` 自动翻译（`individual-goat` → **GOAT**、`individual-go` → Go、`individual-pro` → Pro、`individual-max-10x` / `individual-max-20x` → Max 10x / Max 20x、`team-pro` → Team Pro）；档位接口失败时只影响标签，余额与窗口百分比照常显示。
+
+> ⚠️ **OpenCode Go 未做真机联调**：接口按官方 `/zen/go/v1/usage` 的公开结构实现（`usage.rolling` / `weekly` / `monthly` 里的 `percent`、`resetsAt`，`percent` 为**已用**百分比），开发时手上没有该套餐的 key。窗口缺失会自动跳过；若你的返回结构不同，可在「接口与字段（高级）」里直接改字段路径。
+
 ### Codex 模式（本地会话统计）
 
-> ℹ️ **先分清楚**：这一节说的是本插件**读取本机 Codex 会话日志**的能力（属于 `main`，就是把 Codex 当数据源），
-> 与**「Codex 版小鲸鱼」挂件**（跟随 Codex 窗口的那个端口）是两回事 —— 后者**已迁出本仓库**，见「两条分支怎么选」里的「Codex 版迁移公告」。
+> ℹ️ **先分清楚**：这一节说的是本插件**读取本机 Codex 会话日志**的能力（就是把 Codex 当数据源），
+> 与「Codex 版小鲸鱼」挂件（跟随 Codex 窗口的那个端口，已由上游迁至独立仓库）是两回事 —— 本仓库只提供 DSH 挂件。
 
 > ⚠️ **限制**：Codex 支持目前只是**部分接口适配**，本挂件**不能安装到 Codex 里**（它是 DSH Web 插件，Codex 仅作为数据来源被读取）；订阅窗口没有真实订阅样本可验证，遇异常欢迎反馈。
 
@@ -114,7 +135,7 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 ## 目录结构
 
 ```text
-dsh-whale-widget/
+dsh-whale-widget-pro/
 ├── package.json              # DSH bundle 插件元数据（dsh.bundle.patch 指向 cordis.patch.yml；顶层 icon 指向 icon.png）
 ├── icon.png                  # 插件列表图标（256×256 PNG，含透明；宿主读成 data URL 塞进 meta.icon，必须是正方形）
 ├── README.md                 # 本文件
@@ -169,9 +190,9 @@ error: profile "desktop" is managed exclusively by the Electron application
 
 在桌面客户端的会话里可直接说：
 
-> 请使用当前桌面端内置的 `plugin_manager` 安装 `dsh-whale-widget`。先核对当前 profile 和是否已有同名插件；已有安装时先报告来源与版本。按该工具支持的操作完成后，告诉我安装结果及是否需要重启。
+> 请使用当前桌面端内置的 `plugin_manager` 安装 `dsh-whale-widget-pro`。先核对当前 profile 和是否已有同名插件；已有安装时先报告来源与版本。按该工具支持的操作完成后，告诉我安装结果及是否需要重启。
 
-`plugin_manager` 的作用域是当前 profile（桌面端为 `desktop`），由宿主使用其自带的包管理器完成安装与挂载登记。需要固定版本时，将安装规格改成 `dsh-whale-widget@<目标版本>`。这条说明用于减少安装前后的无关探索（#194）；不需要自行构造认证 cookie、调用底层 RPC 或改写宿主管理的 profile 文件。工具不可用或操作不受支持时，先说明缺少哪项宿主能力，不绕过桌面端限制改用 `--profile web`。
+`plugin_manager` 的作用域是当前 profile（桌面端为 `desktop`），由宿主使用其自带的包管理器完成安装与挂载登记。需要固定版本时，将安装规格改成 `dsh-whale-widget-pro@<目标版本>`。这条说明用于减少安装前后的无关探索（#194）；不需要自行构造认证 cookie、调用底层 RPC 或改写宿主管理的 profile 文件。工具不可用或操作不受支持时，先说明缺少哪项宿主能力，不绕过桌面端限制改用 `--profile web`。
 
 **首次安装与升级的生效方式**（#162）：
 
@@ -196,25 +217,25 @@ error: profile "desktop" is managed exclusively by the Electron application
 
 ```powershell
 # 1) 若是 zip：先解压到一个固定、以后不会移动或删除的目录（不要放临时目录/下载目录）
-#    例：D:\Plugins\dsh-whale-widget
+#    例：D:\Plugins\dsh-whale-widget-pro
 #    要安装的是「包含 package.json 的那一层」，不要多套一层同名目录
 
 # 2) 确认关键文件都在（缺 assets/ 会导致没图、没声）
-Test-Path "D:\Plugins\dsh-whale-widget\package.json",
-          "D:\Plugins\dsh-whale-widget\lib\index.js",
-          "D:\Plugins\dsh-whale-widget\assets\whale-widget.js"
+Test-Path "D:\Plugins\dsh-whale-widget-pro\package.json",
+          "D:\Plugins\dsh-whale-widget-pro\lib\index.js",
+          "D:\Plugins\dsh-whale-widget-pro\assets\whale-widget.js"
 
 # 3) 如果之前从 GitHub / npm 装过同名插件，先卸载避免版本冲突
-dsh plugin --profile web remove dsh-whale-widget
+dsh plugin --profile web remove dsh-whale-widget-pro
 
 # 4) 用绝对路径安装（路径含空格要加引号）
-dsh plugin --profile web add link:D:\Plugins\dsh-whale-widget
+dsh plugin --profile web add link:D:\Plugins\dsh-whale-widget-pro
 ```
 
 说明：
 
 - `link:` 是**软链安装**：源目录里的文件改了立即生效；但安装后**不能移动/重命名该目录**，移动了要重新 add 一次
-- 想改用拷贝安装：`dsh plugin --profile web add file:D:\Plugins\dsh-whale-widget`（此后源目录再改不会同步，需重新 add）
+- 想改用拷贝安装：`dsh plugin --profile web add file:D:\Plugins\dsh-whale-widget-pro`（此后源目录再改不会同步，需重新 add）
 - 资源包自带 `assets/minecraft-exp-orb.wav`、`assets/task-end-a.wav` 等内置资源；**删掉 assets 里的文件会让对应功能静默降级**（无图/无声）
 - 装完同样要重启 `dsh web`，再 F5 刷新浏览器
 
@@ -223,7 +244,7 @@ dsh plugin --profile web add link:D:\Plugins\dsh-whale-widget
 无需本地克隆，一条命令安装：
 
 ```powershell
-dsh plugin --profile web add github:MeteorNOX/DeepSeek-Balance-Whale-Widget
+dsh plugin --profile web add github:<your-github-name>/dsh-whale-widget-pro
 ```
 
 说明：
@@ -231,7 +252,7 @@ dsh plugin --profile web add github:MeteorNOX/DeepSeek-Balance-Whale-Widget
 - 装完后插件会出现在 DSH 的**插件管理页面**里，之后可以直接在页面里更新，无需再手动执行命令
 - 网络环境需要代理时，先设置代理环境变量再执行：
   ```powershell
-  $env:http_proxy="http://<ip>:<port>"; $env:https_proxy="http://<ip>:<port>"; $env:all_proxy="socks5://<ip>:<port>"; dsh plugin --profile web add github:MeteorNOX/DeepSeek-Balance-Whale-Widget
+  $env:http_proxy="http://<ip>:<port>"; $env:https_proxy="http://<ip>:<port>"; $env:all_proxy="socks5://<ip>:<port>"; dsh plugin --profile web add github:<your-github-name>/dsh-whale-widget-pro
   ```
 - 安装完成后重启 `dsh web`，再 F5 刷新浏览器
 
@@ -245,26 +266,26 @@ dsh plugin --profile web add link:.
 
 说明：
 
-- `dsh plugin` 会把参数转发给 pnpm，并在成功后自动把 `dsh-whale-widget` 加入 `dsh.profile.bundles`
+- `dsh plugin` 会把参数转发给 pnpm，并在成功后自动把 `dsh-whale-widget-pro` 加入 `dsh.profile.bundles`
 - **`link:.` 表示链接当前目录**（仓库根目录本身就是插件包）。如果仓库在别处，用绝对路径：
   ```powershell
   dsh plugin --profile web add link:D:\你的路径\DeepSeek-Balance-Whale-Widget
   ```
-- ⚠️ 不要用 `link:.\dsh-whale-widget`——仓库里**没有** `dsh-whale-widget/` 子目录，这样会安装成普通依赖而非插件
+- ⚠️ 不要用 `link:.\dsh-whale-widget-pro`——仓库里**没有** `dsh-whale-widget-pro/` 子目录，这样会安装成普通依赖而非插件
 - 安装完成后重启 `dsh web`，再 F5 刷新浏览器
-- **移动了源码目录**后必须重新执行一次 `add link:<新路径>`；若提示冲突，先 `dsh plugin --profile web remove dsh-whale-widget` 再 add
+- **移动了源码目录**后必须重新执行一次 `add link:<新路径>`；若提示冲突，先 `dsh plugin --profile web remove dsh-whale-widget-pro` 再 add
 
 ### 方式 D：发布到 npm 后安装
 
 ```powershell
-dsh plugin --profile web add dsh-whale-widget
+dsh plugin --profile web add dsh-whale-widget-pro
 ```
 
 ### 给 AI 的安装说明（Web 使用；桌面端使用上面的 `plugin_manager` 提示）
 
 ```
-请帮我安装插件 dsh-whale-widget。可能的来源有两种：GitHub 仓库
-MeteorNOX/DeepSeek-Balance-Whale-Widget，或者我本地已经有这个插件的「完整资源包」。
+请帮我安装插件 dsh-whale-widget-pro。可能的来源有两种：GitHub 仓库
+<your-github-name>/dsh-whale-widget-pro，或者我本地已经有这个插件的「完整资源包」。
 
 先确认运行形态：如果当前是官方桌面客户端，请使用宿主内置 plugin_manager，
 不要执行下面的 Web 命令，也不要自行构造认证/RPC或修改 desktop profile。
@@ -275,10 +296,10 @@ MeteorNOX/DeepSeek-Balance-Whale-Widget，或者我本地已经有这个插件�
 2. 在 Web profile 安装（按我实际拿到的来源任选一种）：
 
    【来源一：从 GitHub 安装】
-     dsh plugin --profile web add github:MeteorNOX/DeepSeek-Balance-Whale-Widget
+     dsh plugin --profile web add github:<your-github-name>/dsh-whale-widget-pro
    或从本地 git 仓库链接安装：
      dsh plugin --profile web add link:<仓库绝对路径>
-   （注意：仓库根目录就是插件包，不要写成 link:.\dsh-whale-widget 这种带子目录的路径）
+   （注意：仓库根目录就是插件包，不要写成 link:.\dsh-whale-widget-pro 这种带子目录的路径）
 
    【来源二：我本地已有完整资源包（zip 或已解压目录）】
    先确认「完整资源包」长什么样：一个目录，里面应当有
@@ -286,16 +307,16 @@ MeteorNOX/DeepSeek-Balance-Whale-Widget，或者我本地已经有这个插件�
      assets/（含 whale-widget.js、DSniang1.png、Ya1.mp3、minecraft-exp-orb.wav、task-end-a.wav 等）、README.md
    然后按下面做：
    a) 如果给我的是 zip：先解压到一个**固定、以后不会移动或删除**的目录，例如
-        D:\Plugins\dsh-whale-widget
+        D:\Plugins\dsh-whale-widget-pro
       不要解压到临时目录/下载目录/会被清理的位置；也不要多套一层——
       要安装的是**包含 package.json 的那一层**，不是外面那个同名压缩包目录
    b) 检查文件完整性（任意一条 False 就先告诉我，不要继续装）：
         Test-Path "<资源包目录>\package.json"
         Test-Path "<资源包目录>\lib\index.js"
         Test-Path "<资源包目录>\assets\whale-widget.js"
-      并确认 package.json 里 name 是 dsh-whale-widget、带 dsh.bundle.patch 字段
+      并确认 package.json 里 name 是 dsh-whale-widget-pro、带 dsh.bundle.patch 字段
    c) 如果之前从 GitHub / npm 装过同名插件，先卸载避免版本冲突：
-        dsh plugin --profile web remove dsh-whale-widget
+        dsh plugin --profile web remove dsh-whale-widget-pro
    d) 用**绝对路径**安装（路径含空格要加引号）：
         dsh plugin --profile web add link:<资源包目录>
       link: 是软链安装：源目录改了立即生效，但安装后不能移动/重命名该目录；
@@ -308,7 +329,7 @@ MeteorNOX/DeepSeek-Balance-Whale-Widget，或者我本地已经有这个插件�
 4. 重启 dsh web，然后 F5 刷新浏览器
 
 安装后验证：
-- dsh --profile web --dump-config 应该能看到 dsh-whale-widget 在 bundles 里
+- dsh --profile web --dump-config 应该能看到 dsh-whale-widget-pro 在 bundles 里
 - curl http://127.0.0.1:3080/dsh-whale/balance.json 应返回 200 JSON（含 totalBalance）
 - curl http://127.0.0.1:3080/dsh-whale/widget.js 应返回 200 JS
 - curl "http://127.0.0.1:3080/dsh-whale/audio-fragment.wav?id=exp_orb" 应返回 200 audio/wav
@@ -353,6 +374,7 @@ MeteorNOX/DeepSeek-Balance-Whale-Widget，或者我本地已经有这个插件�
 | `ARK_API_KEY` | 火山方舟 `/api/v3/models` 探活 |
 | `ZHIPU_API_KEY` | 智谱（订阅额度接口 / Coding 端点） |
 | `OPENCODE_GO_API_KEY` | OpenCode Go 订阅额度（`opencode.ai/zen/go/v1/usage`，鉴权为 `Authorization: Bearer <key>`） |
+| `COMMANDCODE_API_KEY` | Command Code 订阅额度 + 余额（`api.commandcode.ai/alpha/billing/credits`，档位查 `/alpha/billing/subscriptions`，均为 `Authorization: Bearer <key>`） |
 | `CUSTOM_API_KEY` | 自定义 HTTP / OpenAI 兼容中转站 |
 
 > ⚠️ 自定义模型面板里的「凭据名」决定密钥写进哪个 ref。换厂商时请确认这一栏跟着模板变了，否则新密钥会写进上一家厂商的凭据名里（覆盖掉原来的 key）。v679 起新增模型会自动跟随模板。
@@ -360,7 +382,7 @@ MeteorNOX/DeepSeek-Balance-Whale-Widget，或者我本地已经有这个插件�
 ## 卸载
 
 ```powershell
-dsh plugin --profile web remove dsh-whale-widget
+dsh plugin --profile web remove dsh-whale-widget-pro
 ```
 
 ## 从旧手动安装升级
@@ -416,6 +438,16 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 - `/dsh-whale/update-check.json` → 200 JSON：检查更新（`{ok, current, latest, hasUpdate, source}`）；**点了才联网**，镜像优先（npmmirror → jsdelivr → unpkg → npmjs）+ `npm view` 兜底，宿主侧 10 分钟缓存
 - 浏览器 F5 后右下角出现挂件
 
+### 本 fork 新增能力的验证（Command Code / OpenCode Go）
+
+1. **面板**：菜单 → 「小鲸鱼记账」→「模型」→「+ 添加模型（自定义 API）」→ 厂商模板选 `Command Code（订阅）`，凭据名应为 `COMMANDCODE_API_KEY`，填入 key 后「测试连通性」。成功时应看到美元余额与两个窗口（5h / 周），并且档位识别为 `GOAT` / `Go` 等。
+2. **接口**：在带会话的浏览器里打开 `/dsh-whale/api-models.json`，找到该模型的条目，应包含：
+   - `planSupport: true`、`hasBalanceApi: true`、`balanceMode: 'api'`
+   - `plan.windows` 两项：`{key:'rolling', label:'5h', usedPct, spent, cap, resetAt}` 与同样形状的 `weekly`
+   - `plan.level`（如 `GOAT`，来自 `subscriptions` 接口；该接口失败时为空，不影响其余字段）
+3. **泡泡**：模块编辑器里「显示样式」的窗口下拉在 Command Code 上应只有「全部（5h / 周）」「5h」「周」（不会出现空着的「月」）；「余额·Command Code」与「额度·Command Code」两个模块都能挂，分别用 `{balance}` 与 `{plan}` / `{plan_money}`。
+4. **OpenCode Go**：同样方式添加，接口返回三窗口（5h / 周 / 月）。**没有该套餐 key 时报错属预期**（该接口结构未做真机联调）。
+
 > ⚠️ **关于上面这些 `curl`**：全部 **26 个** `/dsh-whale/*` 路由都已接入 **DSH 浏览器信任栅栏**（`connection.requestRejection`）。
 > 因此**不带会话凭据的裸 `curl` 会返回 401**（伪造 `Host` 头则是 403）—— 这是预期行为，不是接口坏了。
 > 想验证接口是否存活，看返回 **401/403** 即说明路由已注册且栅栏在工作；在浏览器里访问同一条路径（带会话）才是 200。
@@ -429,7 +461,7 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
   - 本次操作的错误码和**最早的底层报错及少量上下文**。优先在本机检查错误信息指向的 `.plugin-manager/logs/operation-*/pnpm.log`，再对照 `hub.log`；同时说明是否使用代理/镜像、失败请求的目标域名和状态码。`ERR_PNPM_ADDING_TO_ROOT`、`Invalid time value`、`Failed to fetch` 应分别定位，不按同一原因处理。
   - **公开前先脱敏**：删除 API key、token、cookie、认证头、含凭据的 URL、个人目录用户名及无关会话内容；只保留定位所需的片段，不原样上传完整日志、凭据文件或整个 profile。没有足够证据时先保留当前安装和数据，不批量删除 `node_modules`、锁文件或修改全局 registry。相关issue由报告者验证效果后决定是否关闭。
 - **挂件不出现**：
-  - **Web（`dsh web`）**：确认安装命令成功；`dsh --profile web --dump-config` 里能看到 `dsh-whale-widget`；重启 `dsh web` 后 F5。
+  - **Web（`dsh web`）**：确认安装命令成功；`dsh --profile web --dump-config` 里能看到 `dsh-whale-widget-pro`；重启 `dsh web` 后 F5。
   - **官方桌面端**：先确认装对了 profile —— 桌面端读的是 **`desktop` profile**，**不能**用 `--profile web`（而 `--profile desktop` 会被 CLI 拒绝，这是设计如此）。正确入口见上面「**官方桌面端（Electron 客户端）请先看这一节**」，并用那里的**两条自检**判断是「没装到位」还是「装了但没渲染」。**新装也建议重开一次客户端**（issue #162：热生效不一定够）。
 - **本插件所有接口（`/dsh-whale/*`）的访问校验**：默认只接受**回环地址**（`127.0.0.1` / `localhost` / `[::1]`）的请求，并拒绝跨站标记（`Sec-Fetch-Site: cross-site`）与 Origin 和 Host 不同源的请求 —— 这是防「恶意网页读写本机接口」的信任栅栏（issue #92 / #136）。如果你把 `dsh web` 放在**反向代理或局域网地址**后面，请用环境变量声明允许的 Host（逗号分隔，可带端口），否则会被 403：
   ```bash
@@ -473,6 +505,20 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 - 仓库里 `lib/index.js` 是宿主本体、`lib/accounting.mjs` 是记账内核（定点金额运算 + 观测/校正账本）、`assets/whale-widget.js` 是前端本体；宿主改动（含记账内核）需重启 `dsh web`，仅前端改动硬刷新页面即生效。
 - 完整规格、视觉参数、路由清单、架构结论与生成提示词见 [`whale-widget-prompt.md`](whale-widget-prompt.md)。
 - 本地联调：`dsh plugin --profile web add link:.` 后，改前端 → Ctrl+F5；改宿主 → 重启 `dsh web`。
+- 发布前自检（与 CI 同一组门禁）：`node tools/ci-audit.mjs`、`node tools/z-layer-audit.mjs assets/whale-widget.js`、`node --check lib/index.js`。注意 `ci-audit.mjs` 第 3 项需要 `npm` 在 PATH 上（没有 npm 会报「npm pack 失败」，其余四项照常跑）。
+
+### 开源前需要替换的占位
+
+本仓库从上游 fork 后即可直接使用，只剩少量**身份相关占位**：
+
+| 位置 | 现在 | 替换成 |
+|---|---|---|
+| `README.md` | `<your-github-name>`（5 处：安装表、GitHub 安装命令、AI 安装说明、资源包目录示例） | 你的 GitHub 用户名 |
+| `package.json` | `repository.url` / `bugs.url` / `homepage` 里的 `<your-github-name>` | 同上 |
+| `LICENSE` | 第 4 行 `Copyright (c) 2026 <your-name> (…fork: modifications only)` | 你的署名（**第 3 行上游版权必须保留**） |
+| `package.json` | `version: 0.1.0` | 你的起始版本；发版走手动触发的 `.github/workflows/publish.yml`，发布前记得改 version |
+
+上游的作者信息、致谢与 issue/PR 链接**不要替换**（它们指向真实的历史贡献）。`assets/` 与 `icon.png` 的许可范围见 [`PROVENANCE.md`](PROVENANCE.md)：美术素材沿用上游的「as-is 随插件分发」，不因 fork 变成 MIT。
 
 ## 致谢
 

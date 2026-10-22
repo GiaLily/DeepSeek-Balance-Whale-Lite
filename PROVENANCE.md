@@ -35,3 +35,21 @@
 ## 四、权利主张 / Takedown
 
 如果你认为 `assets/` 中有素材侵犯了你的权利，请在本仓库开一条 issue，说明**文件名**与**依据**，我们会在核实后**立即替换或移除**，不附加其它条件。我们也欢迎直接提供可自由再分发的替代素材。
+
+## 五、本 fork 的改动
+
+本仓库是 [MeteorNOX/DeepSeek-Balance-Whale-Widget](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget)（MIT）的 fork，基于上游 **0.4.2**。上游版权与免责声明完整保留（见 `LICENSE`）；`assets/` 与 `icon.png` 的授权范围与上游**完全一致**（沿用原素材，未新增美术资源，也未改变原有许可说明）。
+
+代码层面的改动：
+
+| 文件 | 改动 |
+|---|---|
+| `lib/index.js` | 新增 `commandcode` 厂商模板（`kind:'quota'`，`COMMANDCODE_API_KEY`）；`templateOrigins()` 纳入 `quota.extra.url`；`fetchModelBalance()` 支持 `json.sum` 多字段求和；`fetchModelQuota()` 支持窗口 `used` + `cap` 换算百分比、`resetAtMs` 时间戳、`quota.extra` 二次请求取套餐档位；新增 `humanizePlanLabel()` 档位名兜底 |
+| `assets/whale-widget.js` | 窗口下拉由静态常量改为按模板 `quota.json.windows` 动态生成（`bubblePlanWinDefs` / `bubblePlanWinOpts` / `bubblePlanWinOf` / `bubblePlanWinLabel`）；既有余额又有额度的厂商额外提供「余额」模块（依据宿主下发的 `hasBalanceApi`）；新增 `apiPlanMoneyOf()` 与 `{plan_money}` / `{plan_spent}` / `{plan_cap}` 变量 |
+| `package.json` | 包名 `dsh-whale-widget-pro`、版本 `0.1.0`、描述 / 关键词 / 仓库地址按本 fork 更新 |
+| `cordis.patch.yml` | 插件 id 与 name 改为 `dsh-whale-widget-pro` |
+| `README.md` | 按 fork 身份重写：新增 Command Code / OpenCode Go 接入说明与窗口金额变量，删除与本仓库无关的上游分支内容 |
+
+兼容性说明：`~/.dsh/.dshw-*.json` 数据文件、`dshwv-*` DOM class、`/dsh-whale/*` 路由**沿用上游命名**，因此角色、音效、账本数据可无缝迁移；代价是本插件**不能与上游 `dsh-whale-widget` 同时启用**（同名路由与同一份状态会互相抢）。
+
+OpenCode Go 的接口按官方公开结构实现，开发时无该套餐 API key，**未做真机联调**；Command Code 的两个接口在开发机实测通过。
