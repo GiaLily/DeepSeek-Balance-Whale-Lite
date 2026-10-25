@@ -585,7 +585,15 @@ var css = [
   '.dshwv-root.dshwv-cursor-grabbing .dshwv-img{pointer-events:auto;cursor:grabbing}',
   // 拖动期间握点相对挂件固定，让整个盒接过指针以保持 grabbing（类由按下时加、endDrag 摘）
   '.dshwv-root.dshwv-dragging .dshwv-body{pointer-events:auto;cursor:grabbing}',
-  '.dshwv-pop{position:absolute;left:0;top:0;width:100%;aspect-ratio:1026/700;pointer-events:none;z-index:1;--dshw-u:calc(var(--dshw-base) / 1026)}',
+  // v804（用户要求）：泡泡直径 +1/5；v805 再 +1/10 ⇒ 1.32。只放大**外框**、不动 --dshw-u（字号不变），
+  //   否则字号跟着放大就等于没放大 -- 容量才是用户要的。
+  //   right:0 而不是 left:0：挂件贴在屏幕右侧，向右扩会被屏幕裁掉，只能向左长。
+  // v808（用户反馈"布局不错但对话框有点大"）：外框尺寸回到 1.0（与鲸鱼本体同宽），
+  //   文字层 u 同比例除以 1.32 —— 整块（气泡 + 文字）等比缩回原尺寸后，
+  //   再按用户反馈把字号回补 1/10（1.45 / 1.1 ≈ 1.32）：外框仍是 1.0 倍，
+  //   行数/顺序/间距比例全部不变，8 行（含失败提示）依然放得下。
+  //   想再放大字就调小这个除数（1.2 = 比现在再大 10%），调大则字变小。
+  '.dshwv-pop{position:absolute;left:auto;right:0;top:0;width:calc(100% * var(--dshw-pop-grow,1));aspect-ratio:1026/700;pointer-events:none;z-index:1;--dshw-u:calc(var(--dshw-base) / 1026 / 1.32)}',
   // v822：形状专属容器（只在它里面重画 ⇒ 内容与动图不受影响）；铺满泡泡并排在最底层
   '.dshwv-shapewrap{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}',
   // 纵深防御：泡泡容器必须透明，形状由内部 SVG 绘制；用 !important 压掉外部
@@ -613,7 +621,7 @@ var css = [
   '.dshwv-pop svg image,.dshwv-pop.dshwv-pop-open svg image{pointer-events:none}',
   '.dshwv-pop .dshwv-bshape,.dshwv-pop .dshwv-b1,.dshwv-pop .dshwv-b2{opacity:0;transform:scale(.7);transform-box:fill-box;transform-origin:50% 50%;transition:opacity .2s ease,transform .2s ease}',
   '.dshwv-pop.dshwv-pop-open .dshwv-bshape,.dshwv-pop.dshwv-pop-open .dshwv-b1,.dshwv-pop.dshwv-pop-open .dshwv-b2{opacity:1;transform:none}',
-  '.dshwv-gif{position:absolute;left:var(--dshw-vx,44.25%);top:var(--dshw-vy,36%);transform:translate(-50%,-50%);max-width:calc(var(--dshw-u) * 560);max-height:calc(var(--dshw-u) * 400);display:none;opacity:0;transition:opacity .2s ease;pointer-events:none;-webkit-user-drag:none;user-select:none;object-fit:contain}',
+  '.dshwv-gif{position:absolute;left:var(--dshw-vx,44.25%);top:var(--dshw-vy,34%);transform:translate(-50%,-50%);max-width:calc(var(--dshw-u) * 560);max-height:calc(var(--dshw-u) * 400);display:none;opacity:0;transition:opacity .2s ease;pointer-events:none;-webkit-user-drag:none;user-select:none;object-fit:contain}',
   '.dshwv-root.dshwv-left .dshwv-gif{transform:translate(-50%,-50%) scaleX(-1)}',
   '.dshwv-pop.dshwv-pop-open .dshwv-gif{opacity:1}',
   '.dshwv-pop.dshwv-pop-open .dshwv-b2{transition-delay:0s}',
@@ -622,12 +630,14 @@ var css = [
   '.dshwv-pop .dshwv-bshape{transition-delay:.1s}',
   '.dshwv-pop .dshwv-b1{transition-delay:.2s}',
   '.dshwv-pop .dshwv-b2{transition-delay:.3s}',
-  '.dshwv-text{position:absolute;left:var(--dshw-vx,44.25%);top:var(--dshw-vy,36%);width:66%;height:64%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#536ba9;line-height:1.15;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .16s ease,transform .3s ease}',
+  '.dshwv-text{position:absolute;left:var(--dshw-vx,44.25%);top:var(--dshw-vy,34%);width:66%;height:64%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#536ba9;line-height:1.15;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .16s ease,transform .3s ease}',
   '.dshwv-pop.dshwv-pop-open .dshwv-text{opacity:1;transition:opacity .16s ease .36s,transform .3s ease}',
   '.dshwv-root.dshwv-left .dshwv-text{transform:translate(-50%,-50%) scaleX(-1)}',
   // 大号字体垂直居中修正：flex 容器以 --dshw-vx/--dshw-vy 为整体中心，
   // 内容(任意行数/字号)由 justify-content:center 整体居中，不随字体度量漂移。
-  '.dshwv-text .dshwv-trow{flex:0 0 auto;margin:calc(var(--dshw-u) * 2) 0}',
+  '.dshwv-text .dshwv-trow{flex:0 0 auto;margin:calc(var(--dshw-u) * 2.5) 0;line-height:1.05}',
+  // v806：多模块拼成的行（峰谷、标题+档位等）在块与块之间留更大的呼吸感
+  '.dshwv-text .dshwv-trowline{margin-top:calc(var(--dshw-u) * 5)}',
   // v838（用户报"安全区变窄不会让文字换行"）：**只有**用了自定义文字安全框的框才允许换行
   //   （内置经典框不挂这个类 ⇒ 历史外观不受影响；安全区本来就只管自定义框）
   // v844（用户要求）：**安全区优先限制左右，不限制上下** ——
@@ -2332,6 +2342,8 @@ function setUsageNavBtn(inUsage) {
 function showUsageSub() {
   try { if (usageHideTimer) { clearTimeout(usageHideTimer); usageHideTimer = null } } catch (err) {}
   usagePanelOpen = true
+  // v812：打开面板就抢一次最新余额 / 今日已用（面板上的数字必须是最新的）
+  try { loadApiModels(null, true) } catch (err) {}
   // 锁定外层 menuBox 当前可见的宽高;用量视图占按钮上方区域并内部滚动
   var w0 = 300
   var h0 = 360
@@ -4643,6 +4655,9 @@ function usageAlertBudgetEditor(key, onSave) {
 // ===== 自定义 API 模型（v657）：状态 / 拉取 / 每模型提醒 / 模型设置窗口 =====
 var apiModels = [] // 最近一次拉到的模型列表（含实时余额 / 今日已用）
 var apiTemplates = [] // 可选厂商模板
+// v800：当前会话最近使用过的模型（宿主下发 `provider/model`）+ 归属到的挂件模型 id。
+// 气泡「当前模型」卡片用它取数；为 null 时一切回退到内置 DeepSeek。
+var apiCurrent = null // { provider, model, matchedId, at }
 var apiModelsLoaded = false
 var apiAlertFired = {} // modelId+阈值 → 已弹过（低于阈值后恢复会复位）
 var apiBudgetFired = {} // modelId+当日+金额 → 已弹过
@@ -4651,6 +4666,61 @@ function apiModelById(id) {
   for (var i = 0; i < apiModels.length; i++) if (apiModels[i] && apiModels[i].id === id) return apiModels[i]
   return null
 }
+// v800：当前模型 → 挂件模型 id。宿主已按 matchIds 算好 matchedId（最准），
+// 拿不到时再按 provider 精确匹配，最后回退内置 DeepSeek（保证任何情况下都有值可显示）。
+function apiCurrentModelId() {
+  var cur = apiCurrent
+  if (cur && cur.matchedId) {
+    for (var i = 0; i < apiModels.length; i++) {
+      if (apiModels[i] && apiModels[i].id === cur.matchedId) return cur.matchedId
+    }
+  }
+  if (cur && cur.provider) {
+    var pv = String(cur.provider).toLowerCase()
+    for (var j = 0; j < apiModels.length; j++) {
+      if (apiModels[j] && String(apiModels[j].provider || '').toLowerCase() === pv) return apiModels[j].id
+    }
+  }
+  return 'deepseek'
+}
+// 当前模型的展示名（取模型条目的 name；条目缺失时用运行时模型名兜底）
+function apiCurrentModelName() {
+  var id = apiCurrentModelId()
+  var m = apiModelById(id)
+  if (m && m.name) return String(m.name)
+  if (apiCurrent && apiCurrent.model) return String(apiCurrent.model)
+  return 'DeepSeek'
+}
+// v803：气泡用的**短名**。完整名（如「Command Code（订阅）」）在 size 8 的标题行里
+// 会超出气泡宽度撑成两行，所以这里给常用厂商一个固定缩写，其余按词首字母兜底。
+// 只影响 `{model_short}`，`{model}` 仍是完整名（面板、其它模块想用全名不受影响）。
+var API_SHORT_NAMES = { commandcode: 'CC', opencode_go: 'OG', opencode: 'OG', deepseek: 'DeepSeek' }
+function apiModelShortName(modelId) {
+  var m = apiModelById(modelId)
+  if (!m) return apiCurrentModelName()
+  var key = String(m.provider || m.id || '').toLowerCase().trim()
+  if (API_SHORT_NAMES[key]) return API_SHORT_NAMES[key]
+  var n = String(m.name || '').trim()
+  if (!n) return String(modelId || '')
+  if (/[\u4e00-\u9fa5]/.test(n)) return n
+  var words = n.split(/[\s\-_（）()]+/).filter(function (x) { return x.length > 0 })
+  if (words.length >= 2) {
+    var s = ''
+    for (var i = 0; i < words.length && s.length < 3; i++) s += words[i].charAt(0).toUpperCase()
+    return s
+  }
+  return n
+}
+// v803：档位显示名。订阅接口给的是 GOAT / MAX 10X 这类全大写，标题行里读着累；
+// 无空格的单词转成「首字母大写 + 其余小写」（GOAT → Goat），带空格的（Max 10x / Team Pro）原样保留。
+function apiLevelText(level) {
+  var s = String(level || '').trim()
+  if (!s) return ''
+  if (s.indexOf(' ') >= 0) return s
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+}
+// 是否已经知道「当前模型」（不知道时气泡仍按 DeepSeek 展示，避免显示空值）
+function apiCurrentKnown() { return !!(apiCurrent && apiCurrent.model) }
 // 「充值 / 余额校正」只属于固定的 DeepSeek（内置）：宿主在模型条目里下发 canAdjustBalance，
 // 前端据此决定要不要在设置菜单里给出入口 —— 手动新增的同名模型、Kimi 等其它厂商都不会有，
 // 新增模板也不会自动继承（宿主还会在路由层再校验一次，见 balance-adjustments.json）。
@@ -4678,6 +4748,9 @@ function apiConvertMoney(v, fromCur, toCur, rate) {
   return null
 }
 function apiFmtMoney(v, cur) {
+  // v812：null 不能当 0 —— 数据还没拿到（例如内置模型的余额接口失败）时，
+  //   以前会显示 "$ 0.00"，看起来像"今天一分没花"，其实是没有数据。
+  if (v === null || v === undefined || v === '') return '--'
   var n = Number(v)
   if (!isFinite(n)) return '--'
   var c = String(cur || '')
@@ -4709,6 +4782,54 @@ function apiModelsFlushWaiters() {
     try { ws[i](apiModelsLoaded ? { ok: true, models: apiModels } : null) } catch (err) {}
   }
 }
+// v812：模型数据刷新成功后，把**正在显示**的泡泡按最新数据重绘一次。
+//   渲染函数都是"读当前 apiModels 再画"的幂等写法，重绘不会推进队列或重置计时。
+function bubbleRepaintIfShown() {
+  try {
+    if (!bubbleShown || !bubbleScene || typeof bubbleScene.render !== 'function') return false
+    bubbleScene.render()
+    return true
+  } catch (err) { return false }
+}
+// v812：每 5 分钟自动刷一次模型数据（余额 / 今日已用 / 额度），刷完顺手重绘界面。
+//   以前只有页面加载那一次 —— 界面上的数字会一直是打开页面那一刻的快照。
+var apiModelsRefreshTimer = null
+// v813 回退路径：老宿主（还没重启加载新代码）不下发 localToday 时，用账本接口的 today.total 补一次。
+//   两者同源（daySummary(...).eventEstimate / .total 都是本地会话估算合计），不需要重启客户端也能显示对的数字。
+var apiLocalTodayAsked = false
+function apiLocalTodayFallback() {
+  if (state.localToday !== null && state.localToday !== undefined) return
+  if (apiLocalTodayAsked) return
+  apiLocalTodayAsked = true
+  try {
+    fetch(USAGE_REC_URL, { cache: 'no-store' })
+      .then(function (r) { return r.json() })
+      .then(function (d) {
+        if (!d || !d.ok || !d.today) { apiLocalTodayAsked = false; return }
+        // 注意：d.today.total 是 summary.amount（DeepSeek 余额差口径，走网关时恒 0），
+        //   这里要的是「本机会话估算合计」= modelTotal / eventEstimate。
+        var tl = d.today
+        var lt = null
+        if (tl.modelTotal !== undefined && tl.modelTotal !== null && isFinite(Number(tl.modelTotal))) lt = Number(tl.modelTotal)
+        else if (tl.eventEstimate !== undefined && tl.eventEstimate !== null && isFinite(Number(tl.eventEstimate))) lt = Number(tl.eventEstimate)
+        if (lt !== null && lt > 0) {
+          state.localToday = lt
+          state.localTodayCurrency = tl.modelCurrency || tl.eventCurrency || 'CNY'
+          bubbleRepaintIfShown()
+        }
+      })
+      .catch(function () { apiLocalTodayAsked = false })
+  } catch (err) {}
+}
+function apiModelsScheduleRefresh() {
+  try {
+    if (apiModelsRefreshTimer) { clearTimeout(apiModelsRefreshTimer); apiModelsRefreshTimer = null }
+    apiModelsRefreshTimer = setTimeout(function () {
+      apiModelsRefreshTimer = null
+      try { loadApiModels(null, true) } catch (err) {}
+    }, 300000)
+  } catch (err) {}
+}
 function loadApiModels(cb, force) {
   if (cb) apiModelsWaiters.push(cb)
   if (apiModelsLoading) return // 已有请求在飞：回调排队，避免重复请求
@@ -4727,6 +4848,8 @@ function apiModelsFetch(tries) {
       if (d && d.ok && Array.isArray(d.models)) {
         apiModels = d.models
         apiTemplates = Array.isArray(d.templates) ? d.templates : []
+        // v800：宿主下发当前模型；没有该字段（老宿主）时保持原值不动
+        if (Object.prototype.hasOwnProperty.call(d, 'current')) apiCurrent = d.current || null
         apiModelsLoaded = true
         apiModelsError = ''
         apiModelsLoading = false
@@ -4734,10 +4857,16 @@ function apiModelsFetch(tries) {
         // 首次加载成功：把还停在「加载中」的面板/模块调色板重绘掉。
         // 注意模型列表在「静态区」里（buildUsageSubShell 只建一次），
         // 只调 refreshUsageMain 只会重绘下面的记录区，静态区仍停在旧状态 → 必须重建整个子界面。
+        // v812：刷新成功后更新界面数字。面板只在「首次加载」时整块重建 —— 定时刷新期间重建会把
+        //   用户正在填的输入框冲掉，所以面板上的数字靠"打开面板时强刷"（showUsageSub）保证最新；
+        //   气泡则每次刷新都原地重绘（bubbleRepaintIfShown）。
         if (!wasLoaded) {
           try { if (usagePanelOpen && usageSet !== null) rebuildUsageSubShell() } catch (err) {}
           try { renderBubblePal() } catch (err) {}
         }
+        apiLocalTodayFallback()
+        if (wasLoaded) { try { bubbleRepaintIfShown() } catch (err) {} }
+        try { apiModelsScheduleRefresh() } catch (err) {}
         apiModelsFlushWaiters()
         return
       }
@@ -5472,7 +5601,12 @@ function buildUsageSettingsArea() {
     var infoTxt = ''
     if (am.error) infoTxt = '⚠ ' + am.error
     else if (am.codex && am.codex.ok) infoTxt = apiCodexRowText(am)
-    else if (planOn) infoTxt = '厂商额度 ' + apiPlanSummary(am.id)
+    else if (planOn) {
+      // v800：既有余额接口、又能拿到数值的厂商（Command Code 就是这种）→ **余额和额度一起给**。
+      // 旧逻辑整个覆盖成「厂商额度 …」，导致美元余额永远不显示。
+      var hasBalV = am.hasBalanceApi === true && am.balance !== null && am.balance !== undefined
+      infoTxt = (hasBalV ? '余额 ' + apiFmtMoney(am.balance, am.currency) + ' · 额度 ' : '厂商额度 ') + apiPlanSummary(am.id)
+    }
     else if (qOn) infoTxt = '额度 ' + apiQuotaSummary(am.id)
     else if (am.balanceMode === 'events') infoTxt = '余额 —（无接口·按事件）· 今日 ' + apiFmtMoney(am.todayUsage, apiTodayCur(am))
     else infoTxt = apiFmtMoney(am.balance, am.currency) + ' · 今日 ' + apiFmtMoney(am.todayUsage, apiTodayCur(am))
@@ -6718,7 +6852,9 @@ function usageTurnCostDefaultLines() {
   return [
     { type: 'text', text: '上一轮对话消耗:', size: 8, bold: true },
     { type: 'text', text: '¥ {cost}', size: 24, bold: true, color: '#e0433f' },
-    { type: 'today', size: 2, tpl: '今日已用 {expense_ds}', bold: false, rgb: '', color: '#ffffff', bgRgb: 'indigo', bg: '' },
+    // v813：这里以前用 {expense_ds}（DeepSeek 余额差口径）—— 走 Command Code 等网关时官方余额不动，
+    //   永远显示 0.00。改成 {expense_local}：今日所有厂商的本地会话估算合计。
+    { type: 'today', size: 2, tpl: '今日已用 {expense_local}', bold: false, rgb: '', color: '#ffffff', bgRgb: 'indigo', bg: '' },
   ]
 }
 // 每轮消耗提示内容读取:lines[] 优先;无内容 → 默认模板
@@ -6734,13 +6870,16 @@ function usageCostValue(amount) {
   var n = Number(amount)
   return isFinite(n) ? n.toFixed(2) : '--'
 }
-// 提醒泡泡停留毫秒:autoClose=false 或 ttlSec<=0 → 不自动关闭(0);未设置(旧配置)→ 默认 6500
+// 提醒泡泡停留毫秒
+// v810（用户反馈"提醒几秒就消失、经常错过"）：**默认常驻**（返回 0 = 不布自动关闭计时器），
+//   只有设置里显式填了秒数（ttlSec>0）才按时关闭。收起时机 = 用户点击鲸鱼，或新提醒覆盖旧提醒。
+//   面板「自动关闭」输入 0 / 关掉开关都走同一条常驻路径。
 function usageRemindTtlMs(cfg) {
   cfg = cfg || {}
   if (cfg.autoClose === false) return 0
   var s = Number(cfg.ttlSec)
   if (cfg.ttlSec !== undefined && isFinite(s) && s > 0) return Math.max(500, Math.round(s * 1000))
-  return USAGE_ALERT_TTL
+  return 0
 }
 // 提醒内容读取:lines[] 优先;无内容 → 默认模板
 function usageRemindLinesOf(cfg, isAlert) {
@@ -8456,66 +8595,16 @@ var BUBBLE_DEFAULT_ITEMS = [
     {
         "kind":  "custom",
         "modules":  [
-                        {
-                            "type":  "text",
-                            "text":  "DeepSeek 余额",
-                            "size":  8,
-                            "bold":  true,
-                            "rgb":  "",
-                            "ul":  false,
-                            "italic":  false,
-                            "color":  ""
-                        },
-                        {
-                            "type":  "balance",
-                            "size":  20,
-                            "rgb":  "indigo",
-                            "color":  "",
-                            "tpl":  "{balance_ds}",
-                            "bgRgb":  "",
-                            "bg":  "",
-                            "fontFamily":  "",
-                            "bold":  false
-                        },
-                        {
-                            "type":  "today",
-                            "size":  4,
-                            "color":  "#9fb0d9",
-                            "tpl":  "今日已用 {expense_ds}"
-                        },
-                        {
-                            "type":  "peak",
-                            "size":  2,
-                            "peakColor":  "#ffffff",
-                            "offColor":  "#ffffff",
-                            "tpl":  "{status}",
-                            "peakRgb":  "",
-                            "offRgb":  "",
-                            "peakBgRgb":  "rouge",
-                            "peakBg":  "",
-                            "offBgRgb":  "bamboo",
-                            "offBg":  "",
-                            "peakStyle":  "mini",
-                            "bold":  true,
-                            "row":  4,
-                            "fontFamily":  "\"Microsoft YaHei\",sans-serif"
-                        },
-                        {
-                            "type":  "peak",
-                            "size":  4,
-                            "bold":  true,
-                            "peakColor":  "#e0433f",
-                            "offColor":  "#2fa24c",
-                            "peakRgb":  "rouge",
-                            "offRgb":  "bamboo",
-                            "peakStyle":  "count",
-                            "tpl":  "{countdown}",
-                            "row":  4,
-                            "fontFamily":  "",
-                            "italic":  false,
-                            "ul":  true
-                        }
-                    ]
+      {"type": "text", "text": "提供商：{model_short}", "size": 5, "bold": true, "nowrap": true},
+      {"type": "balance", "tpl": "{model_balance}", "size": 15, "rgb": "indigo", "mt": 18},
+      {"type": "today", "tpl": "今日已用 {model_today}", "size": 3, "color": "#9fb0d9"},
+      {"type": "text", "tpl": "{model_plan_win1}", "size": 1, "mt": 18},
+      {"type": "text", "tpl": "{model_plan_win2}", "size": 1},
+      {"type": "text", "tpl": "{model_plan_period}", "size": 1},
+      {"type": "peak", "tpl": "{status}", "size": 1, "row": 4, "mt": 18, "peakStyle": "mini", "peakColor": "#ffffff", "offColor": "#ffffff", "peakBgRgb": "rouge", "offBgRgb": "bamboo", "bold": true, "fontFamily": "\"Microsoft YaHei\",sans-serif"},
+      {"type": "peak", "tpl": "{countdown}", "size": 4, "row": 4, "peakStyle": "count", "bold": true, "italic": false, "ul": true, "peakColor": "#e0433f", "offColor": "#2fa24c"},
+      {"type": "text", "tpl": "{model_plan_stale}", "size": 1, "color": "#d93a35", "bold": true, "mt": 6}
+    ]
     },
     {
         "kind":  "choice",
@@ -10704,7 +10793,7 @@ function bubblePickImageToAdd() {
   bubbleModuleNew({ type: 'image', imgId: '', size: 6 })
 }
 // ===== F2「一行多模块」:W2 模块行编辑器数据操作(§7 第 3 步) =====
-var BUBBLE_PV_ROW_MAX = 6 // 泡泡行数上限(编辑器侧防御,与渲染层一致)
+var BUBBLE_PV_ROW_MAX = 8 // 泡泡行数上限(编辑器侧防御,与渲染层一致;v807 起 8：多一行「查询失败」提示)
 var BUBBLE_PV_MOD_MAX = 6 // 同一行模块数上限(F2)
 var bubbleModDrag = null // 正在拖的行内模块块 {ri, mi}
 var bubblePvZone = '' // 当前拖放落点:pairL(行首)/pairR(行尾)/before/after/join
@@ -14046,6 +14135,8 @@ try {
 // resize and size changes, keeping the widget glued to its anchored edge.
 var state = {
   scale: 1.5,
+  localToday: null, // v813：今日「本机模型费用」合计（CNY，含所有厂商的本地会话估算）
+  localTodayCurrency: 'CNY',
   h: 'right',
   hOff: 0,
   v: 'bottom',
@@ -17314,7 +17405,9 @@ function sceneOpen(kind, renderFn, ttlMs) {
   bubbleClearModuleRows()
   try { gifEl.style.display = 'none'; gifEl.style.opacity = '' } catch (err) {}
   try { textBox.style.transition = ''; textBox.style.opacity = '' } catch (err) {}
-  bubbleScene = { kind: kind, ttlMs: ttlMs || 0 }
+  // v812：把渲染函数一起存下来 —— 余额 / 今日已用这些数字来自「页面打开时拉的那一份模型数据」，
+  //   数据刷新后要能原地重绘，否则气泡永远停在旧数字（用户看到"今日已用一直是 0"就是这么来的）。
+  bubbleScene = { kind: kind, ttlMs: ttlMs || 0, render: renderFn }
   bubbleShown = true
   costBubbleActive = (kind === 'cost')
   bubbleRandomActive = (kind === 'random')
@@ -17847,7 +17940,7 @@ function apiPlanResetText(modelId, win) {
   var txt = apiPlanCountdownText(ms)
   return txt || String(p.resetAt)
 }
-function apiPlanSummary(modelId) {
+function apiPlanSummary(modelId, dropLevel) {
   var p = apiPlanOf(modelId)
   if (!p) return '读取中…'
   if (!p.ok) return p.hide ? '--' : (p.error || '读取失败')
@@ -17865,19 +17958,102 @@ function apiPlanSummary(modelId) {
       }
       parts.push(seg)
     }
-    if (p.level) parts.push(p.level)
+    if (p.level && !dropLevel) parts.push(p.level)
     return parts.join(' | ')
   }
   var s = '已用 ' + apiPlanUsedText(modelId) + ' · ' + apiPlanResetText(modelId)
   if (p.weeklyUsedPct !== null && p.weeklyUsedPct !== undefined) s += ' · 周 ' + apiPlanPctText(p.weeklyUsedPct)
-  if (p.level) s += ' · ' + p.level
+  if (p.level && !dropLevel) s += ' · ' + p.level
   return s
+}
+// v805：按**单个窗口**取一行额度文案（`5h 2.9% · 1h25m` / `周 8.1% · 5d4h`）。
+// 为什么不让气泡自己换行：`|` 分隔的长串在窄气泡里会在任意空格处断行，断得难看；
+// 交给调用方按窗口分模块，行高与对齐才可控。
+function apiPlanWinLine(modelId, idx) {
+  var p = apiPlanOf(modelId)
+  if (!p) return '读取中…'
+  if (!p.ok) return p.hide ? '--' : (p.error || '读取失败')
+  if (!p.windows || !p.windows.length) return idx === 0 ? apiPlanSummary(modelId, true) : ''
+  var w = p.windows[idx]
+  if (!w) return ''
+  var seg = w.label ? (w.label + ' ') : ''
+  seg += apiPlanPctText(w.usedPct)
+  var ms = apiPlanResetMs(w.resetAt)
+  if (ms !== null) {
+    var rt = apiPlanCountdownShortText(ms)
+    if (rt) seg += ' · ' + rt
+  }
+  return seg
+}
+// v806：套餐整体剩余时间（订阅周期结束时间）。宿主按候选字段探测，
+// 探测不到时返回空串 —— 调用方（出厂卡的独立一行）会因为内容为空而自动隐藏该行。
+  // v807：「本次查询失败」提示（接口挂了但我们还显示着上次成功的值）
+  function apiPlanStaleText(modelId) {
+    var m = apiModelById(modelId)
+    var p = apiPlanOf(modelId)
+    var stale = (p && p.stale) || (m && m.stale) || false
+    return stale ? '(本次查询失败)' : ''
+  }
+
+  function apiPlanPeriodText(modelId) {
+  var p = apiPlanOf(modelId)
+  if (!p || !p.ok || !p.periodEnd) return ''
+  var ms = apiPlanResetMs(p.periodEnd)
+  if (ms === null) return ''
+  if (ms - Date.now() <= 0) return ''
+  return '套餐剩余 ' + apiPlanCountdownShortText(ms)
 }
 function bubbleIsModelMod(m) { return !!(m && m.modelId && m.modelId !== 'deepseek') }
 function bubbleContentTokenMap(m) {
   m = m || {}
   var v = ''
   var map = {}
+  // v800：**任何模块**都能用的「当前模型」占位符（宿主下发当前会话最近使用的模型）。
+  // 这样气泡不必绑定某个固定模型：换模型后同一个气泡自动跟着变；
+  // 取不到的项统一给 '--'，模板里不会出现空洞。
+  try {
+    var curId = apiCurrentModelId()
+    map['model_id'] = curId
+    map['model_balance'] = apiModelBalanceText(curId) || '--'
+    map['model_today'] = apiModelTodayText(curId) || '--'
+    var cp = apiPlanOf(curId)
+    var level = (cp && cp.level) ? String(cp.level) : ''
+    // 档位（如 GOAT）拼进模型名：一行就能看出「当前在跑哪个套餐档」
+    map['model'] = apiCurrentModelName() + (level ? ' · ' + level : '')
+    // v803：短名版本（Command Code（订阅） · GOAT → CC Goat），出厂气泡标题行用它，避免超出气泡宽度
+    map['model_short'] = apiModelShortName(curId) + (level ? ' ' + apiLevelText(level) : '')
+    map['model_level'] = level || '--'
+    if (apiPlanSupport(curId)) {
+      map['model_plan'] = apiPlanSummary(curId)
+      // v804：标题行已经写了档位（CC Goat），额度行不再重复 ⇒ 一行放得下，不撑破气泡
+      map['model_plan_win'] = apiPlanSummary(curId, true)
+      // v805：按窗口拆行，气泡里一行一个窗口，不再被 `|` 串成一条长龙
+      map['model_plan_win1'] = apiPlanWinLine(curId, 0) || '--'
+      map['model_plan_win2'] = apiPlanWinLine(curId, 1) || ''
+      // v806：套餐整体剩余（订阅周期），取不到时是空串 ⇒ 出厂卡那一行自动隐藏
+      map['model_plan_period'] = apiPlanPeriodText(curId) || ''
+      map['model_plan_stale'] = apiPlanStaleText(curId)
+      map['model_plan_used'] = apiPlanUsedText(curId, 'all')
+      map['model_plan_left'] = apiPlanLeftText(curId, 'all')
+      map['model_plan_reset'] = apiPlanResetText(curId, 'all')
+      map['model_plan_money'] = apiPlanMoneyOf(curId, 'all', 'both') || '--'
+      map['model_plan_spent'] = apiPlanMoneyOf(curId, 'all', 'spent') || '--'
+      map['model_plan_cap'] = apiPlanMoneyOf(curId, 'all', 'cap') || '--'
+    } else {
+      map['model_plan'] = '--'
+      map['model_plan_win'] = '--'
+      map['model_plan_win1'] = '--'
+      map['model_plan_win2'] = ''
+      map['model_plan_period'] = ''
+      map['model_plan_stale'] = ''
+      map['model_plan_used'] = '--'
+      map['model_plan_left'] = '--'
+      map['model_plan_reset'] = '--'
+      map['model_plan_money'] = '--'
+      map['model_plan_spent'] = '--'
+      map['model_plan_cap'] = '--'
+    }
+  } catch (err) {}
   // 自定义模型模块：{balance}/{today} 取该模型自己的数据，并兼容旧的 _ds 写法
   if (bubbleIsModelMod(m) && (m.type === 'balance' || m.type === 'today' || m.type === 'quota' || m.type === 'plan')) {
     map['balance'] = apiModelBalanceText(m.modelId)
@@ -17915,6 +18091,17 @@ function bubbleContentTokenMap(m) {
   } else if (m.type === 'today') {
     v = (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
     map['expense_ds'] = v
+    // v813c：{expense_ds} 是 DeepSeek 余额差口径 —— 走 Command Code 等聚合网关时官方余额不动，恒 0.00。
+    //   这里在「官方口径 <= 0 且本机口径有值」时回退到本机口径：宿主还没重启、仍在用老模板
+    //   '今日已用 {expense_ds}' 时，用户刷新页面就能看到正确数字。
+    if (!(Number(state.todayUsage) > 0) && state.localToday !== null && state.localToday !== undefined && isFinite(Number(state.localToday))) {
+      map['expense_ds'] = fmt(Number(state.localToday), state.localTodayCurrency || 'CNY')
+    }
+    // v813：{expense_local} = 今日本机模型费用（所有模型的本地估算）。有就优先用它 —— 走聚合网关时
+    //   DeepSeek 官方余额不动，{expense_ds} 会一直 0.00，看起来像"没统计"。取不到才回退官方口径。
+    map['expense_local'] = (state.localToday !== null && state.localToday !== undefined && isFinite(Number(state.localToday)))
+      ? fmt(Number(state.localToday), state.localTodayCurrency || 'CNY')
+      : v
   } else if (m.type === 'session') {
     // v768：对话名模块 —— {session} = 当前对话标题（按模块的「保留长度」截断）
     map['session'] = bubbleSessionText(m)
@@ -17932,6 +18119,25 @@ function bubbleTplHelpItems(m) {
   m = m || {}
   var arr = []
   function add(k, d) { arr.push({ k: '{' + k + '}', d: d }) }
+  // v800：「当前模型」系列 —— 任何模块都能用（按宿主下发的当前会话模型取数），
+  // 所以气泡不用绑定固定模型，换模型后自动跟着变。
+  add('model', '当前模型名（含套餐档位，如 Command Code · GOAT）')
+  add('model_short', '当前模型短名（含档位，如 CC Goat；标题行推荐用这个，不会超出气泡）')
+  add('model_balance', '当前模型的余额')
+  add('model_today', '当前模型今日已用')
+  add('model_plan', '当前模型的订阅额度摘要（多窗口逐段、| 分隔）')
+  add('model_plan_win', '同上，但不带套餐档位（标题行已写档位时用这个，一行放得下）')
+  add('model_plan_win1', '第一个额度窗口一行（如 `5h 2.9% · 1h25m`；无多窗口厂商时为整段摘要）')
+  add('model_plan_win2', '第二个额度窗口一行（如 `周 8.1% · 5d4h`；只有一个窗口时为空）')
+  add('model_plan_stale', '接口查询失败时的提示（有上次成功结果时显示红色「(本次查询失败)」，正常时为空）');
+  add('model_plan_period', '套餐整体剩余时间（订阅周期；接口取不到时这一行不显示）')
+  add('model_plan_used', '当前模型订阅额度已用%')
+  add('model_plan_left', '当前模型订阅额度剩余%')
+  add('model_plan_reset', '当前模型订阅额度重置倒计时')
+  add('model_plan_money', '当前模型各窗口已花 / 上限（仅 used/cap 型厂商）')
+  add('model_plan_spent', '当前模型已花金额')
+  add('model_plan_cap', '当前模型额度上限')
+  add('model_level', '套餐档位（如 GOAT / Pro / Max）')
   if (bubbleIsModelMod(m) && (m.type === 'balance' || m.type === 'today' || m.type === 'quota' || m.type === 'plan')) {
     if (m.type !== 'quota' && m.type !== 'plan') {
       add('balance', '该模型的余额')
@@ -17955,7 +18161,10 @@ function bubbleTplHelpItems(m) {
   if (m.type === 'balance') add('balance_ds', '总余额(充值金额+赠金)')
   if (m.type === 'bonus') add('bonus_ds', '赠金余额（未过期的赠送余额；取不到显示 —）')
   if (m.type === 'recharge') add('recharge_ds', '充值余额（不含赠金；取不到显示 —）')
-  else if (m.type === 'today') add('expense_ds', '今日已用金额')
+  else if (m.type === 'today') {
+    add('expense_ds', '今日已用金额（DeepSeek 账户口径：余额观测）')
+    add('expense_local', '今日本机模型费用（含所有厂商的本地会话估算；取不到时回退 expense_ds）')
+  }
   else if (m.type === 'session') add('session', '当前对话名（超过「保留长度」会截断为 前N字...）')
   else if (m.type === 'peak' || m.type === 'nextpeak') {
     if (bubbleIsPeakCount(m)) add('countdown', '距下一时段倒计时 (HH:MM:SS)')
@@ -18066,9 +18275,14 @@ function dshwvAskDot(html) {
 }
 function bubbleContentText(m, autoTxt) {
   m = m || {}
-  if (!m.tpl || !String(m.tpl).length) return autoTxt
-  var map = bubbleContentTokenMap(m)
-  var s = String(m.tpl)
+  // 文本模块（type:'text'）的内容存在 text 字段而不是 tpl；也让它支持 {占位符}，
+  // 这样出厂气泡里的「当前提供商 / {model_short}」「{model_plan_win}」才能取到实时值。
+  var tplSrc = (m.tpl && String(m.tpl).length) ? String(m.tpl) : (m.type === 'text' ? String(m.text || '') : '')
+  if (!tplSrc.length) return autoTxt
+  var map = {}
+  // 取数失败就退回原文，避免文本模块渲染连带整行气泡挂掉
+  try { map = bubbleContentTokenMap(m) || {} } catch (e) { map = {} }
+  var s = tplSrc
   var keys = Object.keys(map).sort(function (a, b) { return b.length - a.length })
   for (var i = 0; i < keys.length; i++) s = s.split('{' + keys[i] + '}').join(String(map[keys[i]]))
   return s
@@ -18385,7 +18599,7 @@ function bubbleRowContentOf(mod) {
     }
     return { txt: '', line: null }
   }
-  return { txt: mod.text || '', line: null }
+  return { txt: bubbleContentText(mod, mod.text || ''), line: null }
 }
 // 渲染一组模块为泡泡内容(F2 渲染层:按行分组 → 行内 flex 并排(≤6 模块/行)→ 超宽自动折行;
 // 图片单独一整行;泡泡行数上限维持 6)
@@ -18394,7 +18608,7 @@ function bubbleRowsTo(parentEl, mods) {
   if (!parentEl || !Array.isArray(mods)) return
   var old = parentEl.querySelectorAll('.dshwv-trow, .dshwv-mimg')
   for (var i = 0; i < old.length; i++) { try { parentEl.removeChild(old[i]) } catch (err) {} }
-  var ROW_MAX = 6 // 泡泡行数上限(维持旧版)
+  var ROW_MAX = 8 // 泡泡行数上限(v807：8 行，最后一行留给查询失败提示)
   var MOD_MAX = 6 // 每行模块数上限(F2)
   // —— 单个模块 → 行内块:样式/底色/跑马灯逐模块独立,与旧版“整行样式”完全一致 ——
   function blockOf(m, rowContent) {
@@ -18457,6 +18671,16 @@ function bubbleRowsTo(parentEl, mods) {
       row.style.whiteSpace = 'nowrap'
       row.style.maxWidth = 'none'
     }
+    // v807：显式要求不换行的模块（气泡标题行等），永远不在中间折行
+    if (m.nowrap) {
+      row.style.whiteSpace = 'nowrap'
+      row.style.maxWidth = 'none'
+    }
+    // v807：模块级上间距（u 的倍数）—— 让「提供商 / 账单 / 限额 / 峰谷」四大块之间留出呼吸感
+    if (m.mt !== undefined && m.mt !== null && m.mt !== '') {
+      var mtv = Number(m.mt)
+      if (isFinite(mtv) && mtv > 0) row.style.marginTop = 'calc(var(--dshw-u) * ' + mtv + ')'
+    }
     row.style.fontSize = 'calc(var(--dshw-u) * ' + bubbleModuleFontU(fSize) + ')'
     // 加粗:普通模块 700;余额模块默认本就 800(重档),勾选加粗须用更重 900,避免“700 < 默认800”反而变细
     if (fBold) row.style.fontWeight = (m.type === 'balance') ? '900' : '700'
@@ -18509,6 +18733,12 @@ function bubbleRowsTo(parentEl, mods) {
   // 预览与真实共用此逻辑,保证两者一致
   function maybeWrap(blk) {
     if (!blk || blk.peak) return
+    // v807：标了 nowrap 的模块（标题行）不参与自动折行判定
+    if (blk.mod && blk.mod.nowrap) {
+      blk.el.style.whiteSpace = 'nowrap'
+      blk.el.style.maxWidth = 'none'
+      return
+    }
     try {
       var compFs = window.getComputedStyle ? parseFloat(window.getComputedStyle(blk.el).fontSize) : 0
       var multNow = bubbleModuleFontU(blk.fSize)
@@ -18639,6 +18869,12 @@ function bubbleRowsTo(parentEl, mods) {
       var para = document.createElement('div')
       para.className = 'dshwv-trow dshwv-trowline'
       para.style.textAlign = 'center'
+      // v807：多模块行（峰谷行）同样支持块间距
+      var mtLine = chunk[0] && chunk[0].mod ? chunk[0].mod.mt : undefined
+      if (mtLine !== undefined && mtLine !== null && mtLine !== '') {
+        var mtv2 = Number(mtLine)
+        if (isFinite(mtv2) && mtv2 > 0) para.style.marginTop = 'calc(var(--dshw-u) * ' + mtv2 + ')'
+      }
       if (capPx2 > 0) para.style.maxWidth = capPx2 + 'px'
       for (var p = 0; p < chunk.length; p++) {
         var pr = chunk[p]
@@ -18797,8 +19033,18 @@ function bubblePreviewInto(container, mods, widthPx, opts) {
 function whaleClick() {
   try {
     if (!bubbleOn) return
-    if (bubbleScene && (bubbleScene.kind === 'cost' || bubbleScene.kind === 'alert')) return // 消耗/预警提醒期间点鲸鱼不动作(点泡泡才关)
+    // v811：这两类提醒改成一「点」就全关（原来是 return "点鲸鱼不动作"）——
+    //   常驻之后提醒会一直挂着，用户点角色却毫无反应，只能去点泡泡、还要一条条点掉。现在点哪儿都关。
+    if (bubbleScene && (bubbleScene.kind === 'cost' || bubbleScene.kind === 'alert')) {
+      var wasCost = bubbleScene.kind === 'cost'
+      whaleSysClearSeen()
+      if (wasCost) hideCostBubble()
+      else hideUsageAlertBubble()
+      return
+    }
     if (!bubbleShown) {
+      // v812：先按当前（可能是旧的）数据画出来，同时后台抢一次最新数据，回来再重绘
+      try { loadApiModels(null, true) } catch (err) {}
       bubbleRoundOn = true
       bubbleSeqIdx = 0
       bubbleShowSeqNext()
@@ -18828,8 +19074,9 @@ function whaleClick() {
 function bubbleNext() {
   try {
     if (!bubbleShown) return
-    if (bubbleScene && bubbleScene.kind === 'cost') { hideCostBubble(); return }
-    if (bubbleScene && bubbleScene.kind === 'alert') { hideUsageAlertBubble(); return }
+    // v811：点一下就把这两类提醒关干净（含队列里堆积的旧项），不再逐条点击
+    if (bubbleScene && bubbleScene.kind === 'cost') { whaleSysClearSeen(); hideCostBubble(); return }
+    if (bubbleScene && bubbleScene.kind === 'alert') { whaleSysClearSeen(); hideUsageAlertBubble(); return }
     // v777：等待交互泡泡**可以点掉**（用户反馈「无法点击关闭」）。原来的实现在这里是 `return`
     //（设计意图是"别让误点把'正在等待你回答'收掉"），但真机上用户就是想把它点掉 ⇒ 改成：
     // 点泡泡 = 收起，并记住"这条挂起已被点掉"，pollWaitState 不再自动弹回（回答/批准或下一次新挂起照常）。
@@ -18861,6 +19108,8 @@ function hideBubble() {
   bubbleCloseVisual()
 }
 function showCostBubble(amount) {
+  // v813b：消耗气泡要用「今日本机费用」，数据还没到就顺手补一次
+  try { apiLocalTodayFallback() } catch (err) {}
   if (!bubbleOn || !turnCostOn) return
   // v778：②区「冒泡提示」勾选框（events.turnCost.bubbleOn）以前**只写不读** —— 取消勾选照样弹。
   //   同类问题（"控件有值、没有消费方"）与本次修的音量滑块同源，一并接上：
@@ -18887,7 +19136,7 @@ function hideCostBubble() {
 }
 // —— 系统泡泡优先队列:今日预算(1) > 余额预警(2) > 本轮消耗(3) ——
 // 同批(约 30ms 窗口内)触发的多个系统泡泡按等级依次展示;已展示项结束(关闭/超时)再播下一项
-var USAGE_ALERT_TTL = 6500 // 提醒泡泡停留毫秒数
+var USAGE_ALERT_TTL = 0 // v810：提醒泡泡默认常驻（0 = 不自动关闭）；旧版 6500ms 太短会漏看
 var whaleSysQueue = []
 var whaleSysItem = null // 当前正展示的 {kind, mods/amount, rank}
 var whaleSysTimer = null
@@ -18947,13 +19196,23 @@ function whaleSysPush(item) {
     }
     // 正在展示消耗泡泡时,新提醒退化为居中卡片(避免与消耗内容抢层);排队中的则按序等
     if (costBubbleActive && !whaleSysItem) return false
-    // v772：**每轮消耗改后入先出** —— 新一轮消耗直接置顶，原来那条退回队列（点击时按"新→旧"回看）。
-    if (item.kind === 'cost' && whaleSysItem && whaleSysItem.kind === 'cost') {
-      var pre2 = whaleSysItem
-      whaleSysItem = null
-      whaleSysQueueInsert(pre2)
-      whaleSysOpenItem(item)
-      return true
+    // v811（用户 v814 追加要求：队列里最多只留一条，新消息把旧的挤出去）：
+    //   「每轮消耗」和「余额预警/预算」共用**同一个展示槽 + 同一个队列槽** —— 新来的直接顶掉旧的，
+    //   旧的不再退回队列（原实现退队 ⇒ 旧项变成待点击的一条，用户要连点好几次）。
+    //   只有「等待交互（授权/提问）」独立保留：它必须一直可见到用户操作，不能被账单类提醒顶掉。
+    if (item.kind === 'cost' || item.kind === 'alert') {
+      var keptQ = []
+      for (var qi = 0; qi < whaleSysQueue.length; qi++) {
+        var qq = whaleSysQueue[qi]
+        if (qq && (qq.kind === 'cost' || qq.kind === 'alert')) continue // 账单类旧项全部丢掉
+        keptQ.push(qq)
+      }
+      whaleSysQueue = keptQ
+      if (whaleSysItem && (whaleSysItem.kind === 'cost' || whaleSysItem.kind === 'alert')) {
+        whaleSysItem = null // 正展示的旧账单提醒直接丢弃（不退回队列）
+        whaleSysOpenItem(item)
+        return true
+      }
     }
     whaleSysQueueInsert(item)
     if (whaleSysTimer) { clearTimeout(whaleSysTimer); whaleSysTimer = null }
@@ -18992,6 +19251,22 @@ function whaleSysSwapNext() {
     whaleSysOpenItem(item) // v772：与 tick / 抢占同一份展示逻辑
     return true
   } catch (err) { return false }
+}
+// v811（用户反馈"要点好几次才清空"）：用户**主动点击**看过之后，把「消耗 / 提醒」两类系统提醒
+//   连同队列里的旧项一起清掉，点击一次就关干净。等待交互（授权 / 提问）不清 —— 它必须留到宿主
+//   明确说挂起解除，否则用户会把"正在等你批准"误点没了。
+//   自动超时那条路径（bubbleAutoClose → hideCostBubble / hideUsageAlertBubble）**不**调这里，
+//   仍然保留原来的"有下一项就淡切"语义。
+function whaleSysClearSeen() {
+  try {
+    if (whaleSysItem && (whaleSysItem.kind === 'cost' || whaleSysItem.kind === 'alert')) whaleSysItem = null
+    var keep = []
+    for (var i = 0; i < whaleSysQueue.length; i++) {
+      var q = whaleSysQueue[i]
+      if (q && q.kind !== 'cost' && q.kind !== 'alert') keep.push(q)
+    }
+    whaleSysQueue = keep
+  } catch (err) {}
 }
 function hideUsageAlertBubble() {
   // 与手动点击“第 n 次点击”一致:有下一项时保持打开淡切,无下一项才收起
@@ -19342,6 +19617,13 @@ function refresh(manual) {
         balanceRetryLeft = 2
         state.todayUsage = data.todayUsage !== undefined ? data.todayUsage : null
         state.todayUsageCurrency = data.todayUsageCurrency || data.currency || 'CNY'
+        // v813：本机模型费用（含 Command Code 等所有厂商的本地估算）
+        // v813b：只有宿主真的下发了 localToday 才覆盖 —— 老宿主（未重启）没有这个字段，
+        //   无条件写 null 会把 apiLocalTodayFallback() 补到的值冲掉，气泡又回 0.00。
+        if (Object.prototype.hasOwnProperty.call(data, 'localToday')) {
+          state.localToday = data.localToday !== undefined && data.localToday !== null && isFinite(Number(data.localToday)) ? Number(data.localToday) : null
+          state.localTodayCurrency = data.localTodayCurrency || 'CNY'
+        }
         // v781：赠金 / 充值余额（宿主两条路都下发；缺失给 null ⇒ 模块显示 —）
         state.bonusBalance = isFinite(Number(data.bonusBalance)) ? Number(data.bonusBalance) : null
         state.rechargeBalance = isFinite(Number(data.rechargeBalance)) ? Number(data.rechargeBalance) : null
@@ -19410,7 +19692,7 @@ var usageMode = 'ledger'
 var peakMode = 'default'
 var bubbleOn = true
 var turnCostOn = true
-var turnCostCloseMs = 5000
+var turnCostCloseMs = 0 // v810：消耗泡泡默认常驻（0 = 不自动关闭）；面板「自动关闭」填秒数即可恢复定时收起
 var costBubbleActive = false
 var scrollGapOn = false
 var scrollGapPx = 17
