@@ -6852,8 +6852,9 @@ function usageTurnCostDefaultLines() {
   return [
     { type: 'text', text: '上一轮对话消耗:', size: 8, bold: true },
     { type: 'text', text: '¥ {cost}', size: 24, bold: true, color: '#e0433f' },
-    // v813：这里以前用 {expense_ds}（DeepSeek 余额差口径）—— 走 Command Code 等网关时官方余额不动，
-    //   永远显示 0.00。改成 {expense_local}：今日所有厂商的本地会话估算合计。
+    // v813/v815：这里以前用 {expense_ds}（DeepSeek 余额差口径）—— 走 Command Code 等网关时官方余额不动，
+    //   永远显示 0.00。改成 {expense_local}：优先取当前模型的今日花费（与点击气泡同源），
+    //   取不到时回退所有厂商的本机会话估算合计。
     { type: 'today', size: 2, tpl: '今日已用 {expense_local}', bold: false, rgb: '', color: '#ffffff', bgRgb: 'indigo', bg: '' },
   ]
 }
@@ -18097,11 +18098,21 @@ function bubbleContentTokenMap(m) {
     if (!(Number(state.todayUsage) > 0) && state.localToday !== null && state.localToday !== undefined && isFinite(Number(state.localToday))) {
       map['expense_ds'] = fmt(Number(state.localToday), state.localTodayCurrency || 'CNY')
     }
-    // v813：{expense_local} = 今日本机模型费用（所有模型的本地估算）。有就优先用它 —— 走聚合网关时
-    //   DeepSeek 官方余额不动，{expense_ds} 会一直 0.00，看起来像"没统计"。取不到才回退官方口径。
-    map['expense_local'] = (state.localToday !== null && state.localToday !== undefined && isFinite(Number(state.localToday)))
-      ? fmt(Number(state.localToday), state.localTodayCurrency || 'CNY')
-      : v
+    // v815（用户反馈"点一下气泡显示 $0.48，每轮消耗气泡显示 ¥1.40，两处对不上"）：
+    //   {expense_local} 优先用**当前模型的今日花费**（与点击气泡的 {model_today} 完全同源 ——
+    //   Command Code 这类有余额接口的走"余额差实扣"，DeepSeek 官方走本机会话估算 + 人民币），
+    //   于是两张气泡的「今日已用」必然一致；当前模型取不到数时，再回退"所有模型的本机估算合计"，
+    //   最后回退官方口径。旧版直接取合计，导致同一屏出现 $0.48 与 ¥1.40 两个"今日已用"。
+    var curTodayInfo = apiModelBalanceInfo(apiCurrentModelId())
+    var curTodayNum = curTodayInfo ? Number(curTodayInfo.today) : NaN
+    var hasCurToday = !!(curTodayInfo && curTodayInfo.today !== null && curTodayInfo.today !== undefined && isFinite(curTodayNum))
+    if (hasCurToday) {
+      map['expense_local'] = fmt(curTodayNum, curTodayInfo.todayCurrency || curTodayInfo.currency || 'CNY')
+    } else if (state.localToday !== null && state.localToday !== undefined && isFinite(Number(state.localToday))) {
+      map['expense_local'] = fmt(Number(state.localToday), state.localTodayCurrency || 'CNY')
+    } else {
+      map['expense_local'] = v
+    }
   } else if (m.type === 'session') {
     // v768：对话名模块 —— {session} = 当前对话标题（按模块的「保留长度」截断）
     map['session'] = bubbleSessionText(m)
@@ -18163,7 +18174,7 @@ function bubbleTplHelpItems(m) {
   if (m.type === 'recharge') add('recharge_ds', '充值余额（不含赠金；取不到显示 —）')
   else if (m.type === 'today') {
     add('expense_ds', '今日已用金额（DeepSeek 账户口径：余额观测）')
-    add('expense_local', '今日本机模型费用（含所有厂商的本地会话估算；取不到时回退 expense_ds）')
+    add('expense_local', '今日已用（优先=当前模型的真实今日花费，与点击气泡同源；取不到时回退本机估算合计）')
   }
   else if (m.type === 'session') add('session', '当前对话名（超过「保留长度」会截断为 前N字...）')
   else if (m.type === 'peak' || m.type === 'nextpeak') {
