@@ -2,7 +2,12 @@
 
 ![DSH 小鲸鱼记账挂件](assets/DSH2.png)
 
-> 这是 [MeteorNOX/DeepSeek-Balance-Whale-Widget](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget) 的个人 fork 版，面向 DSH（DeepSeek Harness）桌面端，**以 AI 辅助开发为主**：需求由人提出，设计、编码、验证基本由 DSH 中的 AI 完成，人工只做验收。
+> 这是 [MeteorNOX/DeepSeek-Balance-Whale-Widget](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget) 的个人 fork 版，面向 DSH（DeepSeek Harness）桌面端。
+>
+> **本 fork 的主要目的：在第三方订阅套餐（Command Code、OpenCode Go）里，监控 DeepSeek 最新模型（DeepSeek V4.1 Flash / V4 Pro）的用量与花费**。上游只覆盖官方渠道与通用余额查询，对第三方套餐转发的 DeepSeek 模型没有完整的用量统计与计价。除 DeepSeek 最新模型外，其它模型不保证完整支持。
+>
+> 开发方式以 AI 辅助为主：需求由人提出，设计、编码、验证基本由 DSH 中的 AI 完成，人工只做验收。
+>
 > 上游 v0.4.2 的完整功能说明、截图与变更记录见 **[README.upstream.md](./README.upstream.md)**（fork 基点版本）。
 
 ## 相对上游 v0.4.2 的核心区别
@@ -14,10 +19,7 @@
 | OpenCode Go 计价 | 原版已有该厂商的额度模板；本 fork 增加 `deepseek-v4.1-flash` / `deepseek-v4-pro` 的本轮美元金额（与 CmdC 同价目），其余模型不显示金额 |
 | 轮末气泡按厂商裁剪 | 官方 DeepSeek 与 OpenCode Go 不再显示「今日已用」，只显示本轮消耗、输入 / 输出、缓存命中率；CmdC 只显示本轮金额 + 5h 已用 / 剩余 |
 | 厂商白名单 | 界面只暴露 DeepSeek 官方、Command Code、OpenCode Go 三家；上游其余模板保留在代码表里但不下发（`LITE_PROVIDERS`，只过滤下发不删表，旧模型配置不会丢） |
-| 模型名友好化 | 气泡与面板显示 `CmdC：DeepSeek V4.1 Flash` 这类可读名称，替代原始 `provider/model` 串 |
 | 面板账单口径 | 「近7天实际扣费」只统计官方渠道，按余额差观测（准确优先）单列展示；CmdC / OpenCode Go 的订阅额度不计入 |
-
-> 更细的实现说明、根因与验证方式见 [`PROVENANCE.md`](PROVENANCE.md)。
 
 ## 安装
 
