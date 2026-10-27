@@ -6079,7 +6079,12 @@ function refreshUsageMain() {
         state.usageLabel = d.today.label || '本地估算'
       }
     })
-    .catch(function () { if (usageMainEl && !usageMainEl.firstChild) usageMainEl.textContent = '记录加载失败' })
+    .catch(function () {
+      // v872：加载失败时**无条件**替换「加载中…」占位。旧逻辑只在 usageMainEl 还没有子节点时替换，
+      // 而首次加载失败时占位 div 已经在了 ⇒ 永远停在「加载中…」（用户报「没有历史账单了但一直加载中」）。
+      if (!usageMainEl) return
+      usageMainEl.innerHTML = '<div class="dshwv-usage-hint">记录加载失败，点上方「刷新」重试</div>'
+    })
 }
 function uSectionTitle(leftTxt, rightTxt) {
   var h = document.createElement('div')

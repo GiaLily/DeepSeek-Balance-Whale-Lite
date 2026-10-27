@@ -1,6 +1,6 @@
 {
   "name": "dsh-whale-widget-lite",
-  "version": "0.4.2-lite.4",
+  "version": "0.4.2-lite.5",
   "description": "DSH Web 界面右下角的余额小鲸鱼挂件 Lite（fork 自 dsh-whale-widget）：只保留经过验证的三家提供商（DeepSeek 官方 / Command Code / OpenCode Go），其余厂商模板不下发到 UI；保留上游全部小鲸鱼互动、气泡版式与音效",
   "keywords": [
     "dsh",
