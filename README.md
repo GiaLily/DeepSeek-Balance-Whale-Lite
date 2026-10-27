@@ -4,7 +4,7 @@
 
 > 这是 [MeteorNOX/DeepSeek-Balance-Whale-Widget](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget) 的个人 fork 版，面向 DSH（DeepSeek Harness）桌面端。
 >
-> **本 fork 的主要目的：在第三方订阅套餐（Command Code、OpenCode Go）里，监控 DeepSeek 最新模型（DeepSeek V4.1 Flash / V4 Pro）的用量与花费**。上游只覆盖官方渠道与通用余额查询，对第三方套餐转发的 DeepSeek 模型没有完整的用量统计与计价。除 DeepSeek 最新模型外，其它模型不保证完整支持。
+> **本 fork 的主要目的：在第三方订阅套餐（Command Code、OpenCode Go）里，监控 DeepSeek 最新模型（DeepSeek V4.1 Flash / V4 Pro）的用量与花费**。除 DeepSeek 最新模型外，其它模型不保证完整支持。
 >
 > 开发方式以 AI 辅助为主：需求由人提出，设计、编码、验证基本由 DSH 中的 AI 完成，人工只做验收。
 >
@@ -38,9 +38,30 @@ dsh plugin --profile desktop add "link:D:/Coding/dsh-whale-widget-lite"
 
 > ⚠️ 不要与上游 `dsh-whale-widget` 同时启用：两者共用同一份状态文件与 `/dsh-whale/*` 路由，会互相抢。
 
+## 接入 Command Code（第三方 provider 插件）
+
+本插件的 CmdC 用量监控，是在社区维护的第三方 provider 插件 **`@mars-sea/dsh-commandcode-provider`** 下接入的：
+
+- GitHub：<https://github.com/Mars-Sea/dsh-commandcode-provider>
+- npm：<https://www.npmjs.com/package/@mars-sea/dsh-commandcode-provider>
+
+```powershell
+dsh plugin --profile desktop add @mars-sea/dsh-commandcode-provider@latest
+```
+
+装好后在 **设置 → Models → Command Code** 卡片里填 API key（或网页登录获取），再选模型即可。该插件注册的 provider id 是 `commandcode`，所以会话事件里 `source.provider` 就是 `commandcode`——本插件正是按这个标识识别 CmdC，并通过 DSH 官方凭据读取 `COMMANDCODE_API_KEY`，显示美元余额、5h / 周窗口与本轮花费。
+
+> 如果你在 DSH 里自己新建「自定义提供商」来接入 CmdC，provider 名字不再是 `commandcode`，本插件就识别不到——本轮不会显示美元金额，5h 窗口也不会出现。本插件只识别 `commandcode`、`command-code` 或名字里含 `cmdcode` 的 provider。CmdC 上只有 `deepseek-v4.1-flash` / `deepseek-v4.1-flash-fast` / `deepseek-v4-pro` 会显示金额。
+
+## 支持的 DSH 版本
+
+- 本插件在 **DSH 2.0.19-next（dsh 引擎 `0.2.1-rc.2`）** 上开发并验证。
+- Command Code provider 插件（`@mars-sea/dsh-commandcode-provider`）声明支持 `dsh 0.2.0-rc.2 || 0.2.1-rc.2`；更早的引擎不保证。
+- 上架插件市场：`package.json` 已声明 `dsh.bundle.patch`；市场做兼容性判定时读 `engines.dsh`，本仓库该字段与上述验证范围保持一致。
+
 ## 版本
 
-当前版本：`0.4.2-lite.11`
+当前版本：`0.4.2-lite.12`
 
 - 上游基线：`v0.4.2`（commit `5247dd6`）
 - 同步上游：仓库保留 `upstream` remote 指向原仓库；上游发版后 rebase 到最新 tag，冲突集中在 `package.json` / `README` / `PROVENANCE.md` / `lib/index.js` / `assets/whale-widget.js` 五处。
