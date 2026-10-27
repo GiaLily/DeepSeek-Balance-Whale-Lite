@@ -1,21 +1,23 @@
 # ============================================================================
-# dsh-whale-widget-pro —— DSH bundle patch
+# dsh-whale-widget-lite —— DSH bundle patch
 # ============================================================================
 # 这是插件的"挂载声明"。DSH 启动时按 bundle 层栈叠加各插件 patch，
 # 本文件会把鲸鱼余额挂件插入 profile 的配置树。
 #
 # 安装方式（不再需要手工复制/手工改 profile patch）：
-#   dsh plugin --profile web add dsh-whale-widget-pro
+#   dsh plugin --profile web add dsh-whale-widget-lite
 # 或本地开发安装：
 #   dsh plugin --profile web add link:<本目录绝对路径>
 #
-# ⚠️ 本包与上游 dsh-whale-widget 是同一份代码的 fork：
+# ⚠️ 本包与上游 dsh-whale-widget 是同一份代码的 fork（lite 定制版）：
 #    · 内部数据文件（~/.dsh/.dshw-*.json）、DOM class（dshwv-*）、路由（/dsh-whale/*）
 #      都沿用上游命名，所以角色/音效/账本可以无缝沿用；
 #    · 但**两个包不能同时启用**（会各自挂一只鲸鱼、抢同一份状态与同一个路由）。
 #      换到本包前请先移除上游：`dsh plugin --profile web remove dsh-whale-widget`
+#    · lite 版只在 UI 暴露 DeepSeek 官方 / Command Code / OpenCode Go 三家，
+#      其余厂商模板不下发（见 lib/index.js 顶部 LITE_PROVIDERS）。
 # ============================================================================
 
 - insert:
-    - id: dsh-whale-widget-pro
-      name: dsh-whale-widget-pro
+    - id: dsh-whale-widget-lite
+      name: dsh-whale-widget-lite

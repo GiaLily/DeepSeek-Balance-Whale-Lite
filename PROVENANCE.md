@@ -53,9 +53,10 @@
 
 **v810（提醒常驻）**：自动弹出的提醒不再定时收起 —— `usageRemindTtlMs()` 未填 `ttlSec` 时返回 **0**（原 6500ms），`USAGE_ALERT_TTL` 常量 6500 → **0**，客户端 `var turnCostCloseMs` 5000 → **0**；宿主 `readSizeConfig()` / `writeSizeConfig()` / `.dshw-size.json` 合并兜底三处默认值同步 5000 → **0**。`sceneOpen()` 只在 `ttlMs > 0` 时布 `bubbleAutoClose` 计时器，因此 0 天然常驻；`bubbleTtlArmed(0)` / `bubbleTtlClear()` 与巡检逻辑沿用原「常驻」路径（与等待泡泡一致），不会误收。收起时机：用户点击鲸鱼，或新提醒经 `whaleSysSwapNext()` 覆盖旧提醒。显式配置（`autoClose:false`、`ttlSec>0`、面板秒数）仍按原样生效。
 
-**v809**：字号回补 1/10 —— `--dshw-u` 的除数由 `1.45` 改为 **`1.32`**（1.45 / 1.1），外框仍是 1.0 倍；行数、顺序、间距比例不变，8 行仍放得下。用户若还要更大的字，继续调小该除数即可。| `package.json` | 包名 `dsh-whale-widget-pro`、版本 `0.3.0`、描述 / 关键词 / 仓库地址按本 fork 更新 |
-| `cordis.patch.yml` | 插件 id 与 name 改为 `dsh-whale-widget-pro` |
+**v809**：字号回补 1/10 —— `--dshw-u` 的除数由 `1.45` 改为 **`1.32`**（1.45 / 1.1），外框仍是 1.0 倍；行数、顺序、间距比例不变，8 行仍放得下。用户若还要更大的字，继续调小该除数即可。| `package.json` | 包名 `dsh-whale-widget-lite`、版本 `0.4.2-lite.1`、描述 / 关键词 / 仓库地址按本 fork 更新 |
+| `cordis.patch.yml` | 插件 id 与 name 改为 `dsh-whale-widget-lite` |
 | `README.md` | 按 fork 身份重写：新增 Command Code / OpenCode Go 接入说明与窗口金额变量，删除与本仓库无关的上游分支内容 |
+| `lib/index.js` | lite 定制：新增 `LITE_PROVIDERS = ['deepseek', 'commandcode', 'opencode_go']`，`/dsh-whale/api-models.json` 的 `templates` 只下发白名单内的厂商；`API_TEMPLATES` 表本身不动（上游 rebase 不冲突，已保存的旧模型仍可解析） |
 
 兼容性说明：`~/.dsh/.dshw-*.json` 数据文件、`dshwv-*` DOM class、`/dsh-whale/*` 路由**沿用上游命名**，因此角色、音效、账本数据可无缝迁移；代价是本插件**不能与上游 `dsh-whale-widget` 同时启用**（同名路由与同一份状态会互相抢）。
 

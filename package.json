@@ -1,7 +1,7 @@
 {
-  "name": "dsh-whale-widget-pro",
-  "version": "0.3.9",
-  "description": "DSH Web 界面右下角的余额小鲸鱼挂件（fork 自 dsh-whale-widget）：余额/今日已用/峰谷定价、自定义泡泡点击序列、逐行样式与字体、音效与每轮消耗、自定义角色/动图/音效、吸附与翻转；额外支持 Command Code 订阅（GOAT/Go/Pro/Max/Team）与 OpenCode Go 订阅的余额、用量窗口与重置时间监控",
+  "name": "dsh-whale-widget-lite",
+  "version": "0.4.2-lite.1",
+  "description": "DSH Web 界面右下角的余额小鲸鱼挂件 Lite（fork 自 dsh-whale-widget）：只保留经过验证的三家提供商（DeepSeek 官方 / Command Code / OpenCode Go），其余厂商模板不下发到 UI；保留上游全部小鲸鱼互动、气泡版式与音效",
   "keywords": [
     "dsh",
     "dsh-plugin",
@@ -25,12 +25,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/<your-github-name>/dsh-whale-widget-pro.git"
+    "url": "git+https://github.com/<your-github-name>/dsh-whale-widget-lite.git"
   },
   "bugs": {
-    "url": "https://github.com/<your-github-name>/dsh-whale-widget-pro/issues"
+    "url": "https://github.com/<your-github-name>/dsh-whale-widget-lite/issues"
   },
-  "homepage": "https://github.com/<your-github-name>/dsh-whale-widget-pro#readme",
+  "homepage": "https://github.com/<your-github-name>/dsh-whale-widget-lite#readme",
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"

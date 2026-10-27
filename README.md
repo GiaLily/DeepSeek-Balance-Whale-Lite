@@ -1,4 +1,4 @@
-# DSH 小鲸鱼记账挂件 Pro（dsh-whale-widget-pro）
+# DSH 小鲸鱼记账挂件 Lite（dsh-whale-widget-lite）
 
 ![DSH 小鲸鱼记账挂件](assets/DSH2.png)
 
@@ -8,6 +8,8 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 > 相对上游主要多了两类**订阅套餐**的监控：**Command Code**（GOAT / Go / Pro / Max / Team，美元余额 + 5h/周窗口 + 档位）与 **OpenCode Go**（5h / 周 / 月窗口）；另有多窗口下拉按模板动态生成、`used/cap` 型厂商的窗口消费金额变量。
 > 内部数据文件（`~/.dsh/.dshw-*.json`）、DOM class（`dshwv-*`）、路由（`/dsh-whale/*`）**沿用上游命名**，所以角色 / 音效 / 账本可以无缝沿用；但**不要同时启用上游与本插件**（两个包会各挂一只鲸鱼、抢同一份状态）。
 > 改动清单见 [`PROVENANCE.md`](PROVENANCE.md) 末尾「本 fork 的改动」。
+>
+> **lite 定制**：上游 30+ 个厂商模板里，有 18 个没有可用的余额接口（余额只能显示「—」、今日已用按事件估算），属于半成品。本包**只在 UI 暴露已实测的三家**：DeepSeek 官方 / Command Code / OpenCode Go——其余模板保留在代码表里但**不下发**，不会出现在「新增模型」的厂商下拉里。要放开某家，改 `lib/index.js` 顶部的 `LITE_PROVIDERS` 数组即可。上游的小鲸鱼互动、气泡版式、音效全部原样保留，可随上游更新。
 
 ## 装在哪里
 
@@ -15,13 +17,13 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 
 | 你要挂在哪 | 用哪条分支 | 安装方式 |
 |---|---|---|
-| **DSH Web 界面右下角**（就是这个 README 描述的插件） | `main`（默认分支） | `dsh plugin --profile web add dsh-whale-widget-pro`（推荐，装 npm 已发布版）；也可以从本仓库装 `dsh plugin --profile web add github:<your-github-name>/dsh-whale-widget-pro`，但那样装的是 **main 当前状态、不跟随已发布版本** |
+| **DSH Web 界面右下角**（就是这个 README 描述的插件） | `main`（默认分支） | `dsh plugin --profile web add dsh-whale-widget-lite`（推荐，装 npm 已发布版）；也可以从本仓库装 `dsh plugin --profile web add github:<your-github-name>/dsh-whale-widget-lite`，但那样装的是 **main 当前状态、不跟随已发布版本** |
 | **官方桌面客户端（Electron）右下角** | `main`（同一个包） | ⚠️ **不能用** `--profile web`（桌面端读的是 `desktop` profile，CLI 也拒绝 `--profile desktop`）—— 在桌面端会话里**让 DSH 自己装**，见下方「官方桌面端（Electron 客户端）请先看这一节」 |
 
 > ⚠️ **与上游 `dsh-whale-widget` 也不能共存**：两者用同一份状态文件与同一个 `/dsh-whale/*` 路由，同时启用会互相抢。换到本插件前请先 `dsh plugin --profile web remove dsh-whale-widget`（桌面端用 `plugin_manager` 卸载）。
 
 
-⚠️ **安装方式二选一、别混用**（npm 名 / `github:`）—— 它们是同一个包名，先后安装会并存冲突；已经是 `github:` 装的，要换 npm 名请先 `dsh plugin --profile web remove dsh-whale-widget-pro`。
+⚠️ **安装方式二选一、别混用**（npm 名 / `github:`）—— 它们是同一个包名，先后安装会并存冲突；已经是 `github:` 装的，要换 npm 名请先 `dsh plugin --profile web remove dsh-whale-widget-lite`。
 
 ## 特性
 
@@ -146,7 +148,7 @@ Command Code 的档位由 `subscriptions` 返回的 `planId` 自动翻译（`ind
 ## 目录结构
 
 ```text
-dsh-whale-widget-pro/
+dsh-whale-widget-lite/
 ├── package.json              # DSH bundle 插件元数据（dsh.bundle.patch 指向 cordis.patch.yml；顶层 icon 指向 icon.png）
 ├── icon.png                  # 插件列表图标（256×256 PNG，含透明；宿主读成 data URL 塞进 meta.icon，必须是正方形）
 ├── README.md                 # 本文件
@@ -201,9 +203,9 @@ error: profile "desktop" is managed exclusively by the Electron application
 
 在桌面客户端的会话里可直接说：
 
-> 请使用当前桌面端内置的 `plugin_manager` 安装 `dsh-whale-widget-pro`。先核对当前 profile 和是否已有同名插件；已有安装时先报告来源与版本。按该工具支持的操作完成后，告诉我安装结果及是否需要重启。
+> 请使用当前桌面端内置的 `plugin_manager` 安装 `dsh-whale-widget-lite`。先核对当前 profile 和是否已有同名插件；已有安装时先报告来源与版本。按该工具支持的操作完成后，告诉我安装结果及是否需要重启。
 
-`plugin_manager` 的作用域是当前 profile（桌面端为 `desktop`），由宿主使用其自带的包管理器完成安装与挂载登记。需要固定版本时，将安装规格改成 `dsh-whale-widget-pro@<目标版本>`。这条说明用于减少安装前后的无关探索（#194）；不需要自行构造认证 cookie、调用底层 RPC 或改写宿主管理的 profile 文件。工具不可用或操作不受支持时，先说明缺少哪项宿主能力，不绕过桌面端限制改用 `--profile web`。
+`plugin_manager` 的作用域是当前 profile（桌面端为 `desktop`），由宿主使用其自带的包管理器完成安装与挂载登记。需要固定版本时，将安装规格改成 `dsh-whale-widget-lite@<目标版本>`。这条说明用于减少安装前后的无关探索（#194）；不需要自行构造认证 cookie、调用底层 RPC 或改写宿主管理的 profile 文件。工具不可用或操作不受支持时，先说明缺少哪项宿主能力，不绕过桌面端限制改用 `--profile web`。
 
 **首次安装与升级的生效方式**（#162）：
 
@@ -228,25 +230,25 @@ error: profile "desktop" is managed exclusively by the Electron application
 
 ```powershell
 # 1) 若是 zip：先解压到一个固定、以后不会移动或删除的目录（不要放临时目录/下载目录）
-#    例：D:\Plugins\dsh-whale-widget-pro
+#    例：D:\Plugins\dsh-whale-widget-lite
 #    要安装的是「包含 package.json 的那一层」，不要多套一层同名目录
 
 # 2) 确认关键文件都在（缺 assets/ 会导致没图、没声）
-Test-Path "D:\Plugins\dsh-whale-widget-pro\package.json",
-          "D:\Plugins\dsh-whale-widget-pro\lib\index.js",
-          "D:\Plugins\dsh-whale-widget-pro\assets\whale-widget.js"
+Test-Path "D:\Plugins\dsh-whale-widget-lite\package.json",
+          "D:\Plugins\dsh-whale-widget-lite\lib\index.js",
+          "D:\Plugins\dsh-whale-widget-lite\assets\whale-widget.js"
 
 # 3) 如果之前从 GitHub / npm 装过同名插件，先卸载避免版本冲突
-dsh plugin --profile web remove dsh-whale-widget-pro
+dsh plugin --profile web remove dsh-whale-widget-lite
 
 # 4) 用绝对路径安装（路径含空格要加引号）
-dsh plugin --profile web add link:D:\Plugins\dsh-whale-widget-pro
+dsh plugin --profile web add link:D:\Plugins\dsh-whale-widget-lite
 ```
 
 说明：
 
 - `link:` 是**软链安装**：源目录里的文件改了立即生效；但安装后**不能移动/重命名该目录**，移动了要重新 add 一次
-- 想改用拷贝安装：`dsh plugin --profile web add file:D:\Plugins\dsh-whale-widget-pro`（此后源目录再改不会同步，需重新 add）
+- 想改用拷贝安装：`dsh plugin --profile web add file:D:\Plugins\dsh-whale-widget-lite`（此后源目录再改不会同步，需重新 add）
 - 资源包自带 `assets/minecraft-exp-orb.wav`、`assets/task-end-a.wav` 等内置资源；**删掉 assets 里的文件会让对应功能静默降级**（无图/无声）
 - 装完同样要重启 `dsh web`，再 F5 刷新浏览器
 
@@ -255,7 +257,7 @@ dsh plugin --profile web add link:D:\Plugins\dsh-whale-widget-pro
 无需本地克隆，一条命令安装：
 
 ```powershell
-dsh plugin --profile web add github:<your-github-name>/dsh-whale-widget-pro
+dsh plugin --profile web add github:<your-github-name>/dsh-whale-widget-lite
 ```
 
 说明：
@@ -263,7 +265,7 @@ dsh plugin --profile web add github:<your-github-name>/dsh-whale-widget-pro
 - 装完后插件会出现在 DSH 的**插件管理页面**里，之后可以直接在页面里更新，无需再手动执行命令
 - 网络环境需要代理时，先设置代理环境变量再执行：
   ```powershell
-  $env:http_proxy="http://<ip>:<port>"; $env:https_proxy="http://<ip>:<port>"; $env:all_proxy="socks5://<ip>:<port>"; dsh plugin --profile web add github:<your-github-name>/dsh-whale-widget-pro
+  $env:http_proxy="http://<ip>:<port>"; $env:https_proxy="http://<ip>:<port>"; $env:all_proxy="socks5://<ip>:<port>"; dsh plugin --profile web add github:<your-github-name>/dsh-whale-widget-lite
   ```
 - 安装完成后重启 `dsh web`，再 F5 刷新浏览器
 
@@ -277,26 +279,26 @@ dsh plugin --profile web add link:.
 
 说明：
 
-- `dsh plugin` 会把参数转发给 pnpm，并在成功后自动把 `dsh-whale-widget-pro` 加入 `dsh.profile.bundles`
+- `dsh plugin` 会把参数转发给 pnpm，并在成功后自动把 `dsh-whale-widget-lite` 加入 `dsh.profile.bundles`
 - **`link:.` 表示链接当前目录**（仓库根目录本身就是插件包）。如果仓库在别处，用绝对路径：
   ```powershell
   dsh plugin --profile web add link:D:\你的路径\DeepSeek-Balance-Whale-Widget
   ```
-- ⚠️ 不要用 `link:.\dsh-whale-widget-pro`——仓库里**没有** `dsh-whale-widget-pro/` 子目录，这样会安装成普通依赖而非插件
+- ⚠️ 不要用 `link:.\dsh-whale-widget-lite`——仓库里**没有** `dsh-whale-widget-lite/` 子目录，这样会安装成普通依赖而非插件
 - 安装完成后重启 `dsh web`，再 F5 刷新浏览器
-- **移动了源码目录**后必须重新执行一次 `add link:<新路径>`；若提示冲突，先 `dsh plugin --profile web remove dsh-whale-widget-pro` 再 add
+- **移动了源码目录**后必须重新执行一次 `add link:<新路径>`；若提示冲突，先 `dsh plugin --profile web remove dsh-whale-widget-lite` 再 add
 
 ### 方式 D：发布到 npm 后安装
 
 ```powershell
-dsh plugin --profile web add dsh-whale-widget-pro
+dsh plugin --profile web add dsh-whale-widget-lite
 ```
 
 ### 给 AI 的安装说明（Web 使用；桌面端使用上面的 `plugin_manager` 提示）
 
 ```
-请帮我安装插件 dsh-whale-widget-pro。可能的来源有两种：GitHub 仓库
-<your-github-name>/dsh-whale-widget-pro，或者我本地已经有这个插件的「完整资源包」。
+请帮我安装插件 dsh-whale-widget-lite。可能的来源有两种：GitHub 仓库
+<your-github-name>/dsh-whale-widget-lite，或者我本地已经有这个插件的「完整资源包」。
 
 先确认运行形态：如果当前是官方桌面客户端，请使用宿主内置 plugin_manager，
 不要执行下面的 Web 命令，也不要自行构造认证/RPC或修改 desktop profile。
@@ -307,10 +309,10 @@ dsh plugin --profile web add dsh-whale-widget-pro
 2. 在 Web profile 安装（按我实际拿到的来源任选一种）：
 
    【来源一：从 GitHub 安装】
-     dsh plugin --profile web add github:<your-github-name>/dsh-whale-widget-pro
+     dsh plugin --profile web add github:<your-github-name>/dsh-whale-widget-lite
    或从本地 git 仓库链接安装：
      dsh plugin --profile web add link:<仓库绝对路径>
-   （注意：仓库根目录就是插件包，不要写成 link:.\dsh-whale-widget-pro 这种带子目录的路径）
+   （注意：仓库根目录就是插件包，不要写成 link:.\dsh-whale-widget-lite 这种带子目录的路径）
 
    【来源二：我本地已有完整资源包（zip 或已解压目录）】
    先确认「完整资源包」长什么样：一个目录，里面应当有
@@ -318,16 +320,16 @@ dsh plugin --profile web add dsh-whale-widget-pro
      assets/（含 whale-widget.js、DSniang1.png、Ya1.mp3、minecraft-exp-orb.wav、task-end-a.wav 等）、README.md
    然后按下面做：
    a) 如果给我的是 zip：先解压到一个**固定、以后不会移动或删除**的目录，例如
-        D:\Plugins\dsh-whale-widget-pro
+        D:\Plugins\dsh-whale-widget-lite
       不要解压到临时目录/下载目录/会被清理的位置；也不要多套一层——
       要安装的是**包含 package.json 的那一层**，不是外面那个同名压缩包目录
    b) 检查文件完整性（任意一条 False 就先告诉我，不要继续装）：
         Test-Path "<资源包目录>\package.json"
         Test-Path "<资源包目录>\lib\index.js"
         Test-Path "<资源包目录>\assets\whale-widget.js"
-      并确认 package.json 里 name 是 dsh-whale-widget-pro、带 dsh.bundle.patch 字段
+      并确认 package.json 里 name 是 dsh-whale-widget-lite、带 dsh.bundle.patch 字段
    c) 如果之前从 GitHub / npm 装过同名插件，先卸载避免版本冲突：
-        dsh plugin --profile web remove dsh-whale-widget-pro
+        dsh plugin --profile web remove dsh-whale-widget-lite
    d) 用**绝对路径**安装（路径含空格要加引号）：
         dsh plugin --profile web add link:<资源包目录>
       link: 是软链安装：源目录改了立即生效，但安装后不能移动/重命名该目录；
@@ -340,7 +342,7 @@ dsh plugin --profile web add dsh-whale-widget-pro
 4. 重启 dsh web，然后 F5 刷新浏览器
 
 安装后验证：
-- dsh --profile web --dump-config 应该能看到 dsh-whale-widget-pro 在 bundles 里
+- dsh --profile web --dump-config 应该能看到 dsh-whale-widget-lite 在 bundles 里
 - curl http://127.0.0.1:3080/dsh-whale/balance.json 应返回 200 JSON（含 totalBalance）
 - curl http://127.0.0.1:3080/dsh-whale/widget.js 应返回 200 JS
 - curl "http://127.0.0.1:3080/dsh-whale/audio-fragment.wav?id=exp_orb" 应返回 200 audio/wav
@@ -393,7 +395,7 @@ dsh plugin --profile web add dsh-whale-widget-pro
 ## 卸载
 
 ```powershell
-dsh plugin --profile web remove dsh-whale-widget-pro
+dsh plugin --profile web remove dsh-whale-widget-lite
 ```
 
 ## 从旧手动安装升级
@@ -475,7 +477,7 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
   - 本次操作的错误码和**最早的底层报错及少量上下文**。优先在本机检查错误信息指向的 `.plugin-manager/logs/operation-*/pnpm.log`，再对照 `hub.log`；同时说明是否使用代理/镜像、失败请求的目标域名和状态码。`ERR_PNPM_ADDING_TO_ROOT`、`Invalid time value`、`Failed to fetch` 应分别定位，不按同一原因处理。
   - **公开前先脱敏**：删除 API key、token、cookie、认证头、含凭据的 URL、个人目录用户名及无关会话内容；只保留定位所需的片段，不原样上传完整日志、凭据文件或整个 profile。没有足够证据时先保留当前安装和数据，不批量删除 `node_modules`、锁文件或修改全局 registry。相关issue由报告者验证效果后决定是否关闭。
 - **挂件不出现**：
-  - **Web（`dsh web`）**：确认安装命令成功；`dsh --profile web --dump-config` 里能看到 `dsh-whale-widget-pro`；重启 `dsh web` 后 F5。
+  - **Web（`dsh web`）**：确认安装命令成功；`dsh --profile web --dump-config` 里能看到 `dsh-whale-widget-lite`；重启 `dsh web` 后 F5。
   - **官方桌面端**：先确认装对了 profile —— 桌面端读的是 **`desktop` profile**，**不能**用 `--profile web`（而 `--profile desktop` 会被 CLI 拒绝，这是设计如此）。正确入口见上面「**官方桌面端（Electron 客户端）请先看这一节**」，并用那里的**两条自检**判断是「没装到位」还是「装了但没渲染」。**新装也建议重开一次客户端**（issue #162：热生效不一定够）。
 - **本插件所有接口（`/dsh-whale/*`）的访问校验**：默认只接受**回环地址**（`127.0.0.1` / `localhost` / `[::1]`）的请求，并拒绝跨站标记（`Sec-Fetch-Site: cross-site`）与 Origin 和 Host 不同源的请求 —— 这是防「恶意网页读写本机接口」的信任栅栏（issue #92 / #136）。如果你把 `dsh web` 放在**反向代理或局域网地址**后面，请用环境变量声明允许的 Host（逗号分隔，可带端口），否则会被 403：
   ```bash
@@ -530,7 +532,7 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 | `README.md` | `<your-github-name>`（5 处：安装表、GitHub 安装命令、AI 安装说明、资源包目录示例） | 你的 GitHub 用户名 |
 | `package.json` | `repository.url` / `bugs.url` / `homepage` 里的 `<your-github-name>` | 同上 |
 | `LICENSE` | 第 4 行 `Copyright (c) 2026 <your-name> (…fork: modifications only)` | 你的署名（**第 3 行上游版权必须保留**） |
-| `package.json` | `version: 0.3.9` | 你的起始版本；发版走手动触发的 `.github/workflows/publish.yml`，发布前记得改 version |
+| `package.json` | `version: 0.4.2-lite.1` | 你的起始版本；发版走手动触发的 `.github/workflows/publish.yml`，发布前记得改 version |
 
 上游的作者信息、致谢与 issue/PR 链接**不要替换**（它们指向真实的历史贡献）。`assets/` 与 `icon.png` 的许可范围见 [`PROVENANCE.md`](PROVENANCE.md)：美术素材沿用上游的「as-is 随插件分发」，不因 fork 变成 MIT。
 
