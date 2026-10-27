@@ -532,7 +532,7 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 | `README.md` | `<your-github-name>`（5 处：安装表、GitHub 安装命令、AI 安装说明、资源包目录示例） | 你的 GitHub 用户名 |
 | `package.json` | `repository.url` / `bugs.url` / `homepage` 里的 `<your-github-name>` | 同上 |
 | `LICENSE` | 第 4 行 `Copyright (c) 2026 <your-name> (…fork: modifications only)` | 你的署名（**第 3 行上游版权必须保留**） |
-| `package.json` | `version: 0.4.2-lite.7` | 你的起始版本；发版走手动触发的 `.github/workflows/publish.yml`，发布前记得改 version |
+| `package.json` | `version: 0.4.2-lite.8` | 你的起始版本；发版走手动触发的 `.github/workflows/publish.yml`，发布前记得改 version |
 
 上游的作者信息、致谢与 issue/PR 链接**不要替换**（它们指向真实的历史贡献）。`assets/` 与 `icon.png` 的许可范围见 [`PROVENANCE.md`](PROVENANCE.md)：美术素材沿用上游的「as-is 随插件分发」，不因 fork 变成 MIT。
 

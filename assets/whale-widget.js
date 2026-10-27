@@ -6339,13 +6339,14 @@ function fillUsagePanel(d) {
   var today = d.today || {}
   var todayModels = today.models || []
   var hasEvToday = todayModels.length > 0
-  // ① 本机模型费用（所有模型的本地会话估算）
-  // 「已观测消费」是 DeepSeek 账户口径（余额观测），已移到 小鲸鱼记账 → DeepSeek（内置）→ 设置 里，
-  // 与「余额校正」放在一起，避免在这里被误读成"全模型合计"。
-  var modelTitle = uSectionTitle('本机模型费用 · 仅 DeepSeek 官方', usageMoney(today.modelTotal, 'CNY'))
+  // ① 区标题「官方 DeepSeek」—— 下面两块（本机模型费用 / 近7天使用记录）都属于这个口径，
+  //    不再各自重复标「仅 DeepSeek 官方」（v875）。
+  var zoneTitle = uSectionTitle('官方 DeepSeek', usageMoney(today.modelTotal, 'CNY'))
+  zoneTitle.title = '本区只统计 DeepSeek 官方（内置）：上面的合计是今日本机模型估算；Command Code / OpenCode Go 为订阅额度制，金额不参与统计；未标注提供商的旧记录无法确认归属，一并排除。'
+  wrap.appendChild(zoneTitle)
+  var modelTitle = uSectionTitle('本机模型费用', '')
   // 标题与下方模型列表之间不再画分隔线（列表本身有边框，够了）
   modelTitle.style.borderBottom = 'none'
-  modelTitle.title = '只统计 DeepSeek 官方（内置）的本地会话估算；Command Code / OpenCode Go 是订阅额度制，价格按套餐折算，不参与这里统计；未标注提供商的旧记录也无法确认归属，一并排除。'
   wrap.appendChild(modelTitle)
   var todayBox = document.createElement('div')
   todayBox.className = 'dshwv-usage-scroll dshwv-usage-today'
@@ -6379,7 +6380,7 @@ function fillUsagePanel(d) {
   sep7.style.borderTop = '1px solid rgba(32,49,112,.15)'
   sep7.style.margin = '6px 0'
   wrap.appendChild(sep7)
-  var t7 = uSectionTitle('近7天使用记录 · 仅 DeepSeek 官方', usageMoney(d.total7, d.total7Currency))
+  var t7 = uSectionTitle('近7天使用记录', usageMoney(d.total7, d.total7Currency))
   t7.style.borderBottom = 'none'
   t7.title = '只统计 DeepSeek 官方（内置）的消费；Command Code / OpenCode Go 是订阅额度制，不参与这里统计；未标注提供商的旧记录也无法确认归属，一并排除。'
   wrap.appendChild(t7)
