@@ -4768,6 +4768,18 @@ function apiTokText(n) {
 function apiTokInText() { return apiTokText(lastTurnStats ? lastTurnStats.input : null) }
 function apiTokOutText() { return apiTokText(lastTurnStats ? lastTurnStats.output : null) }
 function apiTokCacheText() { return apiTokText(lastTurnStats ? lastTurnStats.cache : null) }
+// v867（用户报"输入 tok 比缓存命中 tok 还少，不合理"）：`tok_in` 是**未命中缓存**的输入，
+//   而 `tok_cache` 是命中部分 —— 两者相加才是这一轮的输入总量。它们都是本轮所有步骤的
+//   累计（每一步都会重发上下文，所以命中量会随步数线性增长），口径本身没错，错的是
+//   气泡里把 `tok_in` 直接标成「输入」，看起来像"输入比命中还少"。新增 `tok_in_all`
+//   = 未命中 + 命中，给「输入」这个标签用；`tok_in` 保留原义供高级模板使用。
+function apiTokInAllText() {
+  if (!lastTurnStats) return '--'
+  var i = Number(lastTurnStats.input)
+  var c = Number(lastTurnStats.cache)
+  if (!isFinite(i) || !isFinite(c) || i < 0 || c < 0) return '--'
+  return apiTokText(i + c)
+}
 function apiHitRateText() {
   // 命中率 = 命中缓存的输入 / 输入总量（命中 + 未命中）
   if (!lastTurnStats) return '--'
@@ -6885,7 +6897,9 @@ function usageTurnCostDefaultLines() {
     { type: 'text', text: '¥ {cost}', size: 24, bold: true, color: '#e0433f' },
     // v816（用户要求）：去掉「今日已用」金额（面板与点击气泡都能查），改成上一轮的
     //   输入 / 输出 token 与缓存命中率 —— 这三项只在"刚跑完一轮"时有意义，放这里最合适。
-    { type: 'text', text: '输入 {tok_in} · 输出 {tok_out}', size: 3, bold: false, rgb: '', color: '#9fb0d9', bgRgb: '', bg: '' },
+    // v867：这里必须用 `tok_in_all`（未命中 + 缓存命中的输入总量）——
+    //   用 `tok_in`（仅未命中部分）会得到"输入 66K · 缓存命中 737K"这种反直觉的组合。
+    { type: 'text', text: '输入 {tok_in_all} · 输出 {tok_out}', size: 3, bold: false, rgb: '', color: '#9fb0d9', bgRgb: '', bg: '' },
     { type: 'text', text: '缓存命中 {tok_cache} · {hit_rate}', size: 3, bold: false, rgb: '', color: '#9fb0d9', bgRgb: '', bg: '' },
   ]
 }
@@ -18090,6 +18104,7 @@ function bubbleContentTokenMap(m) {
   //   数据来自 /dsh-whale/last-turn.json（宿主每轮结算时写入三档 token），老宿主缺字段时显示 '--'。
   try {
     map['tok_in'] = apiTokInText()
+    map['tok_in_all'] = apiTokInAllText()
     map['tok_out'] = apiTokOutText()
     map['tok_cache'] = apiTokCacheText()
     map['hit_rate'] = apiHitRateText()
@@ -18194,7 +18209,9 @@ function bubbleTplHelpItems(m) {
   add('model_plan_cap', '当前模型额度上限')
   add('model_level', '套餐档位（如 GOAT / Pro / Max）')
   // v816：上一轮对话的 token 明细 —— 不只是消耗气泡，任何模块都能用（如自己做个"上一轮用量"卡片）
-  add('tok_in', '上一轮的输入 token（未命中缓存的部分）')
+  // v867：`tok_in` 只是**未命中**部分，标成「输入」会显得比缓存命中还少；气泡默认行改用 `tok_in_all`。
+  add('tok_in_all', '上一轮输入 token 总量 = 未命中缓存 + 缓存命中（气泡里写「输入」就用它）')
+  add('tok_in', '上一轮输入 token 中**未命中缓存**的部分（比 `tok_in_all` 少一个 `tok_cache`）')
   add('tok_out', '上一轮的输出 token（含推理 token）')
   add('tok_cache', '上一轮命中缓存的输入 token')
   add('tok_total', '上一轮输入 + 缓存命中 + 输出 的总 token')

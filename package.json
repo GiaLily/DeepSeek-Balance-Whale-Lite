@@ -1,6 +1,6 @@
 {
   "name": "dsh-whale-widget-pro",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "description": "DSH Web 界面右下角的余额小鲸鱼挂件（fork 自 dsh-whale-widget）：余额/今日已用/峰谷定价、自定义泡泡点击序列、逐行样式与字体、音效与每轮消耗、自定义角色/动图/音效、吸附与翻转；额外支持 Command Code 订阅（GOAT/Go/Pro/Max/Team）与 OpenCode Go 订阅的余额、用量窗口与重置时间监控",
   "keywords": [
     "dsh",
