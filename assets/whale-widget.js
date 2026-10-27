@@ -4754,6 +4754,9 @@ function apiConvertMoney(v, fromCur, toCur, rate) {
 //   output = 输出 token（DSH 的 outputTokens 已含 reasoningTokens）
 // 老宿主没有这三个字段时为 null ⇒ 界面显示 '--'，而不是伪造一个 0。
 var lastTurnStats = null
+// v869：上一轮的金额显示口径（宿主 last-turn.json 下发）
+//   showCost=false ⇒ 该模型本轮不显示金额；costText 自带币种符号（$ / ¥）
+var lastTurnCostMeta = null
 function apiTokText(n) {
   if (n === null || n === undefined || n === '') return '--'
   var v = Number(n)
@@ -6894,7 +6897,8 @@ function usageRemindDefaultLines(isAlert) {
 function usageTurnCostDefaultLines() {
   return [
     { type: 'text', text: '上一轮对话消耗:', size: 8, bold: true },
-    { type: 'text', text: '¥ {cost}', size: 24, bold: true, color: '#e0433f' },
+    // v869：金额自带币种符号（人民币 ¥ / Command Code 美元 $），所以文本里不再写死 ¥
+    { type: 'text', text: '{cost}', size: 24, bold: true, color: '#e0433f' },
     // v816（用户要求）：去掉「今日已用」金额（面板与点击气泡都能查），改成上一轮的
     //   输入 / 输出 token 与缓存命中率 —— 这三项只在"刚跑完一轮"时有意义，放这里最合适。
     // v867：这里必须用 `tok_in_all`（未命中 + 缓存命中的输入总量）——
@@ -17556,7 +17560,38 @@ function bubbleRenderRandom(lines) {
 // 每轮消耗提示(v720):内容改为可编辑的模块列表,与余额预警/预算同一条渲染链路。
 // 旧版是写死的三段(label/amount/hint),现在的默认内容(usageTurnCostDefaultLines)复刻它的观感。
 function bubbleRenderCostMods(amount) {
-  bubbleRenderModules(usageAlertModsResolved(usageTurnCostLinesForProvider(), null, null, usageCostValue(amount)))
+  var lines = usageTurnCostLinesForProvider()
+  var meta = lastTurnCostMeta || {}
+  // v869：Command Code 白名单外的模型本轮不显示金额 —— 连同「上一轮对话消耗:」标题一起收掉，
+  //   只保留输入 / 输出 / 缓存命中这几行本轮 token 信息。
+  if (meta.showCost === false) {
+    lines = lines.filter(function (m) {
+      if (!m) return true
+      var t = String(m.tpl || m.text || '')
+      if (/\{cost\}/.test(t)) return false
+      if (t.indexOf('上一轮对话消耗') >= 0) return false
+      return true
+    })
+  }
+  // 金额文本自带币种符号（$ / ¥）：旧模板里写死的「¥ 」前缀要摘掉，避免出现「¥ $0.42」
+  // 老宿主（v869 之前）不下发 costText ⇒ 这里补回 ¥ 前缀，保持人民币口径
+  var costText = meta.costText
+  if (!costText) {
+    var cv = usageCostValue(amount)
+    costText = (cv === '--') ? '¥--' : ('¥' + cv)
+  }
+  if (costText.charAt(0) === '$') {
+    lines = lines.map(function (m) {
+      if (!m) return m
+      var t = String(m.text != null ? m.text : '')
+      if (t.indexOf('{cost}') < 0) return m
+      var cp = {}
+      for (var k in m) cp[k] = m[k]
+      cp.text = t.replace(/¥\s*/g, '')
+      return cp
+    })
+  }
+  bubbleRenderModules(usageAlertModsResolved(lines, null, null, costText))
 }
 // 等待交互提示（v761 / #161 C5）：内容取 events.<kind>.lines（缺失/空 → 默认模板），
 // 走与预警/预算/消耗同一条模块渲染链路。`{session}` 在这里就替换成当前对话名
@@ -22771,6 +22806,17 @@ function pollLastTurn() {
             cache: d.cache == null || !isFinite(Number(d.cache)) ? null : Number(d.cache),
             output: d.output == null || !isFinite(Number(d.output)) ? null : Number(d.output),
           }
+        }
+        // v869：金额显示口径（老宿主没有这些字段 ⇒ 退回旧的 ¥{cost} 行为）
+        if (d.showCost !== undefined || d.costText !== undefined) {
+          lastTurnCostMeta = {
+            showCost: d.showCost !== false,
+            costText: typeof d.costText === 'string' && d.costText ? d.costText : '',
+            model: typeof d.model === 'string' ? d.model : '',
+            provider: typeof d.provider === 'string' ? d.provider : '',
+          }
+        } else {
+          lastTurnCostMeta = null
         }
         if (!lastCostAligned) {
           // 首次拿到数据：以本地记忆的 seq 为基准，只弹比它更新的轮次
