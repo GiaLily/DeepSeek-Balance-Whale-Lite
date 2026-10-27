@@ -6909,6 +6909,32 @@ function usageTurnCostLines() {
   if (Array.isArray(c.lines) && c.lines.length) return c.lines
   return usageTurnCostDefaultLines()
 }
+// v868（用户要求）：每轮消耗气泡按「当前模型」裁剪，只留本轮信息。
+//   DeepSeek / OpenCode Go 是纯按量计费，气泡里再显示「今日已用」只会跟上面的
+//   「本轮消耗 ¥x」打架（一个是本轮、一个是今天的累计）；Command Code 是订阅套餐
+//   （窗口制），保持它现在这套不动。
+//   这里做的是**渲染期兜底**：宿主下发的 lines 可能来自旧版默认，或用户以前自定义过
+//   含 today 模块 / {expense_ds} / {expense_local} 的内容 —— 那种情况下也不会把
+//   「今日已用」带进本轮气泡。默认模板本身（usageTurnCostDefaultLines）已无今日已用，
+//   所以这条对干净安装是空转，只兜旧数据。
+function usageTurnCostLinesForProvider() {
+  var lines = usageTurnCostLines()
+  var id = ''
+  try { id = String(apiCurrentModelId() || '') } catch (err) { id = '' }
+  var provider = ''
+  try {
+    var m = apiModelById(id)
+    provider = String((m && m.provider) || '').toLowerCase()
+  } catch (err) {}
+  // Command Code（订阅窗口）保持原样；其余按量计费厂商一律不显示今日累计
+  if (provider === 'commandcode' || id.indexOf('cmdcode') >= 0) return lines
+  return lines.filter(function (mod) {
+    if (!mod) return true
+    if (mod.type === 'today') return false
+    var t = String(mod.tpl || mod.text || '')
+    return !/\{expense_(ds|local)\}/.test(t)
+  })
+}
 // {cost} 的替换值:与旧版一致保留两位小数;缺失/非数一律 '--'
 // (注意 Number(null)===0,所以必须先判空,否则会显示 0.00)
 function usageCostValue(amount) {
@@ -17530,7 +17556,7 @@ function bubbleRenderRandom(lines) {
 // 每轮消耗提示(v720):内容改为可编辑的模块列表,与余额预警/预算同一条渲染链路。
 // 旧版是写死的三段(label/amount/hint),现在的默认内容(usageTurnCostDefaultLines)复刻它的观感。
 function bubbleRenderCostMods(amount) {
-  bubbleRenderModules(usageAlertModsResolved(usageTurnCostLines(), null, null, usageCostValue(amount)))
+  bubbleRenderModules(usageAlertModsResolved(usageTurnCostLinesForProvider(), null, null, usageCostValue(amount)))
 }
 // 等待交互提示（v761 / #161 C5）：内容取 events.<kind>.lines（缺失/空 → 默认模板），
 // 走与预警/预算/消耗同一条模块渲染链路。`{session}` 在这里就替换成当前对话名
