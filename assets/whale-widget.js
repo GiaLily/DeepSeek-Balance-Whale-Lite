@@ -4747,6 +4747,37 @@ function apiConvertMoney(v, fromCur, toCur, rate) {
   if (f === 'USD' && t === 'CNY') return n * r
   return null
 }
+// —— v816：上一轮对话的 token 明细（供消耗气泡显示输入 / 输出 / 缓存命中率）——
+// 宿主 /dsh-whale/last-turn.json 每轮结束时给出 { input, cache, output }：
+//   input  = 未命中缓存的输入 token
+//   cache  = 命中缓存的输入 token（cacheReadTokens）
+//   output = 输出 token（DSH 的 outputTokens 已含 reasoningTokens）
+// 老宿主没有这三个字段时为 null ⇒ 界面显示 '--'，而不是伪造一个 0。
+var lastTurnStats = null
+function apiTokText(n) {
+  if (n === null || n === undefined || n === '') return '--'
+  var v = Number(n)
+  if (!isFinite(v) || v < 0) return '--'
+  if (v < 1000) return String(Math.round(v))
+  if (v < 1000000) {
+    var k = v / 1000
+    return (k >= 100 ? k.toFixed(0) : k.toFixed(1)) + 'K'
+  }
+  return (v / 1000000).toFixed(2) + 'M'
+}
+function apiTokInText() { return apiTokText(lastTurnStats ? lastTurnStats.input : null) }
+function apiTokOutText() { return apiTokText(lastTurnStats ? lastTurnStats.output : null) }
+function apiTokCacheText() { return apiTokText(lastTurnStats ? lastTurnStats.cache : null) }
+function apiHitRateText() {
+  // 命中率 = 命中缓存的输入 / 输入总量（命中 + 未命中）
+  if (!lastTurnStats) return '--'
+  var c = Number(lastTurnStats.cache)
+  var i = Number(lastTurnStats.input)
+  if (!isFinite(c) || !isFinite(i) || c < 0 || i < 0) return '--'
+  var all = c + i
+  if (all <= 0) return '--'
+  return (c / all * 100).toFixed(1) + '%'
+}
 function apiFmtMoney(v, cur) {
   // v812：null 不能当 0 —— 数据还没拿到（例如内置模型的余额接口失败）时，
   //   以前会显示 "$ 0.00"，看起来像"今天一分没花"，其实是没有数据。
@@ -6852,10 +6883,10 @@ function usageTurnCostDefaultLines() {
   return [
     { type: 'text', text: '上一轮对话消耗:', size: 8, bold: true },
     { type: 'text', text: '¥ {cost}', size: 24, bold: true, color: '#e0433f' },
-    // v813/v815：这里以前用 {expense_ds}（DeepSeek 余额差口径）—— 走 Command Code 等网关时官方余额不动，
-    //   永远显示 0.00。改成 {expense_local}：优先取当前模型的今日花费（与点击气泡同源），
-    //   取不到时回退所有厂商的本机会话估算合计。
-    { type: 'today', size: 2, tpl: '今日已用 {expense_local}', bold: false, rgb: '', color: '#ffffff', bgRgb: 'indigo', bg: '' },
+    // v816（用户要求）：去掉「今日已用」金额（面板与点击气泡都能查），改成上一轮的
+    //   输入 / 输出 token 与缓存命中率 —— 这三项只在"刚跑完一轮"时有意义，放这里最合适。
+    { type: 'text', text: '输入 {tok_in} · 输出 {tok_out}', size: 3, bold: false, rgb: '', color: '#9fb0d9', bgRgb: '', bg: '' },
+    { type: 'text', text: '缓存命中 {tok_cache} · {hit_rate}', size: 3, bold: false, rgb: '', color: '#9fb0d9', bgRgb: '', bg: '' },
   ]
 }
 // 每轮消耗提示内容读取:lines[] 优先;无内容 → 默认模板
@@ -18055,6 +18086,19 @@ function bubbleContentTokenMap(m) {
       map['model_plan_cap'] = '--'
     }
   } catch (err) {}
+  // v816：上一轮对话的 token 明细 —— 任何模块（含纯文本模块、消耗气泡）都能用这些占位符。
+  //   数据来自 /dsh-whale/last-turn.json（宿主每轮结算时写入三档 token），老宿主缺字段时显示 '--'。
+  try {
+    map['tok_in'] = apiTokInText()
+    map['tok_out'] = apiTokOutText()
+    map['tok_cache'] = apiTokCacheText()
+    map['hit_rate'] = apiHitRateText()
+    map['tok_total'] = apiTokText(
+      lastTurnStats && lastTurnStats.input != null && lastTurnStats.cache != null && lastTurnStats.output != null
+        ? lastTurnStats.input + lastTurnStats.cache + lastTurnStats.output
+        : null
+    )
+  } catch (err) {}
   // 自定义模型模块：{balance}/{today} 取该模型自己的数据，并兼容旧的 _ds 写法
   if (bubbleIsModelMod(m) && (m.type === 'balance' || m.type === 'today' || m.type === 'quota' || m.type === 'plan')) {
     map['balance'] = apiModelBalanceText(m.modelId)
@@ -18149,6 +18193,12 @@ function bubbleTplHelpItems(m) {
   add('model_plan_spent', '当前模型已花金额')
   add('model_plan_cap', '当前模型额度上限')
   add('model_level', '套餐档位（如 GOAT / Pro / Max）')
+  // v816：上一轮对话的 token 明细 —— 不只是消耗气泡，任何模块都能用（如自己做个"上一轮用量"卡片）
+  add('tok_in', '上一轮的输入 token（未命中缓存的部分）')
+  add('tok_out', '上一轮的输出 token（含推理 token）')
+  add('tok_cache', '上一轮命中缓存的输入 token')
+  add('tok_total', '上一轮输入 + 缓存命中 + 输出 的总 token')
+  add('hit_rate', '上一轮的缓存命中率 = 缓存命中 ÷（命中 + 未命中）')
   if (bubbleIsModelMod(m) && (m.type === 'balance' || m.type === 'today' || m.type === 'quota' || m.type === 'plan')) {
     if (m.type !== 'quota' && m.type !== 'plan') {
       add('balance', '该模型的余额')
@@ -22670,6 +22720,15 @@ function pollLastTurn() {
       .then(function (r) { return r.json() })
       .then(function (d) {
         if (!d || !d.ok || typeof d.seq !== 'number') return
+        // v816：记住上一轮的 token 明细（供 {tok_in} / {tok_out} / {tok_cache} / {hit_rate} 使用）。
+        //   每一轮结束宿主都会刷新 lastTurn，所以这里每次轮询无条件同步，刷新页面后也能立刻拿到。
+        if (d.input !== undefined || d.cache !== undefined || d.output !== undefined) {
+          lastTurnStats = {
+            input: d.input == null || !isFinite(Number(d.input)) ? null : Number(d.input),
+            cache: d.cache == null || !isFinite(Number(d.cache)) ? null : Number(d.cache),
+            output: d.output == null || !isFinite(Number(d.output)) ? null : Number(d.output),
+          }
+        }
         if (!lastCostAligned) {
           // 首次拿到数据：以本地记忆的 seq 为基准，只弹比它更新的轮次
           lastCostAligned = true
