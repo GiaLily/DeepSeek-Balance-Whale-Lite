@@ -4693,8 +4693,9 @@ function apiCurrentModelName() {
 }
 // v803：气泡用的**短名**。完整名（如「Command Code（订阅）」）在 size 8 的标题行里
 // 会超出气泡宽度撑成两行，所以这里给常用厂商一个固定缩写，其余按词首字母兜底。
+// v870：commandcode 的缩写从 CC 改为 CmdC，与面板/列表里的提供商标签统一。
 // 只影响 `{model_short}`，`{model}` 仍是完整名（面板、其它模块想用全名不受影响）。
-var API_SHORT_NAMES = { commandcode: 'CC', opencode_go: 'OG', opencode: 'OG', deepseek: 'DeepSeek' }
+var API_SHORT_NAMES = { commandcode: 'CmdC', opencode_go: 'OG', opencode: 'OG', deepseek: 'DeepSeek' }
 function apiModelShortName(modelId) {
   var m = apiModelById(modelId)
   if (!m) return apiCurrentModelName()
@@ -6347,8 +6348,8 @@ function fillUsagePanel(d) {
     todayModels.forEach(function (row) {
       var r = document.createElement('div')
       r.className = 'dshwv-usage-row'
-      var n = mkScrollCell(usageModelLabel(row.model), 'dshwv-usage-model', { flex: '0 0 70px', boxSizing: 'border-box' })
-      n.title = String(row.model || '未知')
+      var n = mkScrollCell(usageModelLabel(row.model, row.provider), 'dshwv-usage-model', { flex: '0 0 70px', boxSizing: 'border-box' })
+      n.title = row.provider ? (String(row.model || '未知') + ' · ' + String(row.provider)) : String(row.model || '未知')
       r.appendChild(n)
       var c = document.createElement('span')
       c.textContent = usageMoney(row.cost)
@@ -7240,21 +7241,65 @@ function usageAggModels(daysArr) {
   ;(daysArr || []).forEach(function (day) {
     ;(day.models || []).forEach(function (mm) {
       var k = mm && mm.model ? mm.model : '未知'
-      map[k] = (map[k] || 0) + (Number(mm.cost) || 0)
+      var p = mm && mm.provider ? String(mm.provider) : ''
+      var key = k + '\n' + p
+      if (!map[key]) map[key] = { model: k, provider: p, cost: 0 }
+      map[key].cost += (Number(mm.cost) || 0)
     })
   })
-  return Object.keys(map).map(function (k) { return { model: k, cost: map[k] } }).sort(function (a, b) { return b.cost - a.cost })
+  return Object.keys(map).map(function (k) { return map[k] }).sort(function (a, b) { return b.cost - a.cost })
 }
 // 模型显示名(v653):官方把 V4.1-Flash 的模型名定为 deepseek-flash,旧名 deepseek-v4-flash /
 // deepseek-v4-flash-vision-exp 也仍由同一颗 V4.1-Flash 提供服务并按 Flash 计价。
 // 这里只做「友好标注」,不合并数据(历史仍区分新旧 id);悬浮显示原始 id。
-function usageModelLabel(m) {
+// v870：模型行显示「友好名 + 提供商缩写」，避免 deepseek/deepseek-v4.1-flash-fast 这类
+//  长 id 在窄格子里被截断后互相分不清；title 仍保留原始 id 便于排查。
+function usageProviderTag(p) {
+  var raw = String(p || '').trim()
+  var v = raw.toLowerCase()
+  if (!v) return ''
+  if (v === 'commandcode' || v === 'command-code' || v.indexOf('cmdcode') >= 0) return 'CmdC'
+  if (v.indexOf('opencode') >= 0) return 'OpenCode'
+  if (v.indexOf('deepseek') >= 0) return 'DeepSeek'
+  return raw
+}
+function usageModelFriendly(m) {
+  var s = String(m || '').trim()
+  if (!s) return '未知'
+  // 去掉厂商/路径前缀（deepseek/、openai/、moonshotai/…），只留模型名
+  var slash = s.lastIndexOf('/')
+  if (slash >= 0) s = s.slice(slash + 1)
+  var segs = s.split(/[-_]+/).filter(Boolean)
+  if (!segs.length) return s
+  // 已知品牌按官方写法，其余按首字母大写（Deepseek → DeepSeek 这类不能只靠 cap 解决）
+  var BRAND = {
+    deepseek: 'DeepSeek', openai: 'OpenAI', kimi: 'Kimi', glm: 'GLM', qwen: 'Qwen',
+    claude: 'Claude', gemini: 'Gemini', moonshot: 'Moonshot', minimax: 'MiniMax',
+    mimo: 'MiMo', grok: 'Grok', llama: 'Llama', gpt: 'GPT',
+  }
+  var out = segs.map(function (seg) {
+    var low = seg.toLowerCase()
+    if (/^v\d/.test(low)) return low.toUpperCase()          // v4.1 → V4.1
+    if (BRAND[low]) return BRAND[low]
+    if (low === 'exp') return 'exp'
+    return seg.charAt(0).toUpperCase() + seg.slice(1)
+  })
+  return out.join(' ')
+}
+function usageModelLabel(m, provider) {
   var raw = String(m || '')
   if (!raw) return '未知'
   var k = raw.toLowerCase()
-  if (k === 'deepseek-flash') return 'DeepSeek-V4.1-Flash (deepseek-flash)'
-  if (k === 'deepseek-v4-flash' || k === 'deepseek-v4-flash-vision-exp') return raw + '(旧名·同 V4.1 Flash)'
-  return raw
+  var base
+  if (k === 'deepseek-flash') base = 'DeepSeek V4.1 Flash'
+  else if (k === 'deepseek-v4-flash' || k === 'deepseek-v4-flash-vision-exp') base = usageModelFriendly(raw) + '（旧名·同 V4.1 Flash）'
+  else base = usageModelFriendly(raw)
+  var tag = usageProviderTag(provider)
+  if (!tag) return base
+  // 官方 DeepSeek 的模型名本身就以 DeepSeek 开头，再拼「DeepSeek：」会重复
+  if (base.toLowerCase().indexOf(tag.toLowerCase()) === 0) return base
+  // v870：提供商在前（CmdC：DeepSeek V4.1 Flash Fast），窄格子也一眼能分清是哪家的同名模型
+  return tag + '：' + base
 }
 // 模型占比条区块
 function usageRatioRows(body, secTitle, agg, totalLabel) {
@@ -7273,8 +7318,8 @@ function usageRatioRows(body, secTitle, agg, totalLabel) {
     wr.className = 'dshwv-usage-ratio'
     var lab = document.createElement('span')
     lab.className = 'dshwv-usage-ratio-label'
-    lab.textContent = usageModelLabel(row.model)
-    lab.title = String(row.model || '未知')
+    lab.textContent = usageModelLabel(row.model, row.provider)
+    lab.title = row.provider ? (String(row.model || '未知') + ' · ' + String(row.provider)) : String(row.model || '未知')
     wr.appendChild(lab)
     var track = document.createElement('div')
     track.className = 'dshwv-usage-ratio-track'
@@ -7664,8 +7709,8 @@ function fillUsageRecordsWindow(d) {
               n2.style.overflow = 'hidden'
               n2.style.textOverflow = 'ellipsis'
               n2.style.whiteSpace = 'nowrap'
-              n2.textContent = (usageEvTime(ev) ? usageEvTime(ev) + '  ' : '') + usageModelLabel(ev.model)
-              n2.title = (usageEvTime(ev) ? usageEvTime(ev) + '  ' : '') + String(ev.model || '未知')
+              n2.textContent = (usageEvTime(ev) ? usageEvTime(ev) + '  ' : '') + usageModelLabel(ev.model, ev.provider)
+              n2.title = (usageEvTime(ev) ? usageEvTime(ev) + '  ' : '') + String(ev.model || '未知') + (ev.provider ? ' · ' + String(ev.provider) : '')
               r2.appendChild(n2)
               var c2 = document.createElement('span')
               c2.style.flex = '0 0 auto'
@@ -7705,9 +7750,10 @@ function fillUsageRecordsWindow(d) {
         var hit = !ql || day0.toLowerCase().indexOf(ql) >= 0
         if (!hit) {
           for (var ei = 0; ei < evs.length && !hit; ei++) {
-            var mm0 = String(evs[ei].model || '')
-            // 原始 id 与友好标注都参与搜索(例如输入 4.1 / v4.1 / flash 都能命中)
-            if (mm0.toLowerCase().indexOf(ql) >= 0 || usageModelLabel(mm0).toLowerCase().indexOf(ql) >= 0) hit = true
+            var ev0 = evs[ei]
+            var mm0 = String(ev0.model || '')
+            // 原始 id 与友好标注都参与搜索(例如输入 4.1 / v4.1 / flash / CmdC 都能命中)
+            if (mm0.toLowerCase().indexOf(ql) >= 0 || usageModelLabel(mm0, ev0.provider).toLowerCase().indexOf(ql) >= 0) hit = true
           }
         }
         if (hit || (day0 === usageTodayKeyStr() && !ql)) groups.push(day0)
@@ -18128,7 +18174,8 @@ function bubbleContentTokenMap(m) {
     // 档位（如 GOAT）拼进模型名：一行就能看出「当前在跑哪个套餐档」
     map['model'] = apiCurrentModelName() + (level ? ' · ' + level : '')
     // v803：短名版本（Command Code（订阅） · GOAT → CC Goat），出厂气泡标题行用它，避免超出气泡宽度
-    map['model_short'] = apiModelShortName(curId) + (level ? ' ' + apiLevelText(level) : '')
+    // v870：标题行只显示提供商缩写（CmdC），不再拼套餐档位 —— 档位留给 {model_level} / 模板部件
+    map['model_short'] = apiModelShortName(curId)
     map['model_level'] = level || '--'
     if (apiPlanSupport(curId)) {
       map['model_plan'] = apiPlanSummary(curId)
@@ -18253,7 +18300,7 @@ function bubbleTplHelpItems(m) {
   // v800：「当前模型」系列 —— 任何模块都能用（按宿主下发的当前会话模型取数），
   // 所以气泡不用绑定固定模型，换模型后自动跟着变。
   add('model', '当前模型名（含套餐档位，如 Command Code · GOAT）')
-  add('model_short', '当前模型短名（含档位，如 CC Goat；标题行推荐用这个，不会超出气泡）')
+  add('model_short', '当前模型提供商缩写（CmdC / DeepSeek / OG 等；标题行推荐用这个，不会超出气泡）')
   add('model_balance', '当前模型的余额')
   add('model_today', '当前模型今日已用')
   add('model_plan', '当前模型的订阅额度摘要（多窗口逐段、| 分隔）')
