@@ -6337,72 +6337,67 @@ function fillUsagePanel(d) {
     return
   }
   var today = d.today || {}
-  var todayModels = today.models || []
-  var hasEvToday = todayModels.length > 0
-  // ① 区标题「官方 DeepSeek」—— 下面两块（本机模型费用 / 近7天使用记录）都属于这个口径，
-  //    不再各自重复标「仅 DeepSeek 官方」（v875）。
-  var zoneTitle = uSectionTitle('官方 DeepSeek', usageMoney(today.modelTotal, 'CNY'))
-  zoneTitle.title = '本区只统计 DeepSeek 官方（内置）：上面的合计是今日本机模型估算；Command Code / OpenCode Go 为订阅额度制，金额不参与统计；未标注提供商的旧记录无法确认归属，一并排除。'
-  wrap.appendChild(zoneTitle)
-  var modelTitle = uSectionTitle('本机模型费用', '')
-  // 标题与下方模型列表之间不再画分隔线（列表本身有边框，够了）
-  modelTitle.style.borderBottom = 'none'
-  wrap.appendChild(modelTitle)
-  var todayBox = document.createElement('div')
-  todayBox.className = 'dshwv-usage-scroll dshwv-usage-today'
-  if (hasEvToday) {
-    todayModels.forEach(function (row) {
-      var r = document.createElement('div')
-      r.className = 'dshwv-usage-row'
-      var n = mkScrollCell(usageModelLabel(row.model, row.provider), 'dshwv-usage-model', { flex: '0 0 70px', boxSizing: 'border-box' })
-      n.title = row.provider ? (String(row.model || '未知') + ' · ' + String(row.provider)) : String(row.model || '未知')
-      r.appendChild(n)
-      var c = document.createElement('span')
-      c.textContent = usageMoney(row.cost)
-      r.appendChild(c)
-      todayBox.appendChild(r)
-    })
-  } else if ((today.total || 0) > 0) {
-    var noM = document.createElement('div')
-    noM.className = 'dshwv-usage-hint'
-    noM.textContent = '暂无 DeepSeek 官方本机会话明细；订阅制厂商不参与统计。'
-    todayBox.appendChild(noM)
-  } else {
-    var empty = document.createElement('div')
-    empty.className = 'dshwv-usage-hint'
-    empty.textContent = '今日暂无 DeepSeek 官方消费记录'
-    todayBox.appendChild(empty)
-  }
-  // 列表高度不限制（随内容增长），下方「更多消费记录…」位置随内容移动
-  wrap.appendChild(todayBox)
-  // ② 近 7 天（列表不限制高度）；标题上方加分隔线、自身不带下分隔线
-  var sep7 = document.createElement('div')
-  sep7.style.borderTop = '1px solid rgba(32,49,112,.15)'
-  sep7.style.margin = '6px 0'
-  wrap.appendChild(sep7)
-  var t7 = uSectionTitle('近7天实际扣费', usageMoney(d.total7, d.total7Currency))
-  t7.style.borderBottom = 'none'
-  t7.title = '每天为 DeepSeek 官方账户的实际扣费（余额差观测）；极少数没有观测记录的日期用本机会话估算兜底。Command Code / OpenCode Go 是订阅额度制，不参与这里统计。'
+  var days7 = d.days7 || []
+  // v877：整块合并成「DeepSeek V4 近7日费用」—— 不再单列「今日费用」，
+  // 近 7 天按 V4 Pro / V4 Flash 两列拆分（数据来自 DeepSeek 官方渠道事件 × 官方价目）。
+  var sumPro = 0
+  var sumFlash = 0
+  days7.forEach(function (row) {
+    var bm = row.byModel || {}
+    sumPro = sumPro + (Number(bm.pro) || 0)
+    sumFlash = sumFlash + (Number(bm.flash) || 0)
+  })
+  var t7 = uSectionTitle('DeepSeek V4 近7日费用', usageMoney(sumPro + sumFlash, 'CNY'))
+  t7.title = '按 DeepSeek 官方渠道的会话用量 × 官方价目估算；V4 Pro / V4 Flash 分列，不包含 Command Code / OpenCode Go。'
   wrap.appendChild(t7)
   var daysBox = document.createElement('div')
   daysBox.className = 'dshwv-usage-scroll'
-  ;(d.days7 || []).forEach(function (row) {
+  function headCell(text, align) {
+    var s = document.createElement('span')
+    s.textContent = text
+    s.style.fontSize = '11px'
+    s.style.color = 'rgba(32,49,112,.62)'
+    s.style.textAlign = align
+    return s
+  }
+  var head = document.createElement('div')
+  head.className = 'dshwv-usage-row'
+  var hd = headCell('日期', 'left')
+  hd.style.flex = '0 0 62px'
+  var hp = headCell('V4 Pro', 'right')
+  hp.style.flex = '1'
+  var hf = headCell('V4 Flash', 'right')
+  hf.style.flex = '1'
+  head.appendChild(hd)
+  head.appendChild(hp)
+  head.appendChild(hf)
+  daysBox.appendChild(head)
+  days7.forEach(function (row) {
+    var bm = row.byModel || {}
     var r = document.createElement('div')
     r.className = 'dshwv-usage-row'
     var n = document.createElement('span')
     n.textContent = usageDayLabel(row.date)
     n.title = row.label || ''
+    n.style.flex = '0 0 62px'
     r.appendChild(n)
-    var c = document.createElement('span')
-    c.textContent = usageMoney(row.total, row.currency)
-    r.appendChild(c)
+    var p = document.createElement('span')
+    p.textContent = usageMoney(Number(bm.pro) || 0)
+    p.style.flex = '1'
+    p.style.textAlign = 'right'
+    r.appendChild(p)
+    var f = document.createElement('span')
+    f.textContent = usageMoney(Number(bm.flash) || 0)
+    f.style.flex = '1'
+    f.style.textAlign = 'right'
+    r.appendChild(f)
     daysBox.appendChild(r)
   })
   wrap.appendChild(daysBox)
-  // v873/v874：显式说明口径 —— 只统计 DeepSeek 官方，订阅制厂商不折算成金额
+  // 口径说明
   var scopeNote = document.createElement('div')
   scopeNote.className = 'dshwv-usage-hint'
-  scopeNote.textContent = '仅统计 DeepSeek 官方；Command Code / OpenCode Go 为订阅额度制，金额不参与统计；未标注提供商的旧记录不计入。'
+  scopeNote.textContent = '仅统计 DeepSeek 官方渠道；金额按官方价目估算（官方余额接口不提供按模型的用量）。'
   wrap.appendChild(scopeNote)
   // ③ 更多
   var more = document.createElement('button')
