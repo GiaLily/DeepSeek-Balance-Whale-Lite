@@ -6380,9 +6380,9 @@ function fillUsagePanel(d) {
   sep7.style.borderTop = '1px solid rgba(32,49,112,.15)'
   sep7.style.margin = '6px 0'
   wrap.appendChild(sep7)
-  var t7 = uSectionTitle('近7天使用记录', usageMoney(d.total7, d.total7Currency))
+  var t7 = uSectionTitle('近7天实际扣费', usageMoney(d.total7, d.total7Currency))
   t7.style.borderBottom = 'none'
-  t7.title = '只统计 DeepSeek 官方（内置）的消费；Command Code / OpenCode Go 是订阅额度制，不参与这里统计；未标注提供商的旧记录也无法确认归属，一并排除。'
+  t7.title = '每天为 DeepSeek 官方账户的实际扣费（余额差观测）；极少数没有观测记录的日期用本机会话估算兜底。Command Code / OpenCode Go 是订阅额度制，不参与这里统计。'
   wrap.appendChild(t7)
   var daysBox = document.createElement('div')
   daysBox.className = 'dshwv-usage-scroll'
