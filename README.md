@@ -2,561 +2,62 @@
 
 ![DSH 小鲸鱼记账挂件](assets/DSH2.png)
 
-DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图 + DeepSeek API 余额 + 今日已用 + 每轮对话消耗，并且**泡泡内容可以完全自定义**（点击序列、模块化排版、并列加权出泡、随机语句/随机图片）。标准 DSH bundle 插件，`dsh plugin` 一键安装，无需任何会话令牌。
+> 这是 [MeteorNOX/DeepSeek-Balance-Whale-Widget](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget) 的个人 fork 版，面向 DSH（DeepSeek Harness）桌面端。
+> 上游完整的功能说明、截图、安装方式与变更记录见 **[README.upstream.md](./README.upstream.md)**（fork 基点 v0.4.2 的原版 README）。
 
-> 🐋 **这是 [dsh-whale-widget](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget) 的 fork**，鲸鱼形象与全部交互沿用上游（MIT）。
-> 相对上游主要多了两类**订阅套餐**的监控：**Command Code**（GOAT / Go / Pro / Max / Team，美元余额 + 5h/周窗口 + 档位）与 **OpenCode Go**（5h / 周 / 月窗口）；另有多窗口下拉按模板动态生成、`used/cap` 型厂商的窗口消费金额变量。
-> 内部数据文件（`~/.dsh/.dshw-*.json`）、DOM class（`dshwv-*`）、路由（`/dsh-whale/*`）**沿用上游命名**，所以角色 / 音效 / 账本可以无缝沿用；但**不要同时启用上游与本插件**（两个包会各挂一只鲸鱼、抢同一份状态）。
-> 改动清单见 [`PROVENANCE.md`](PROVENANCE.md) 末尾「本 fork 的改动」。
->
-> **lite 定制**：上游 30+ 个厂商模板里，有 18 个没有可用的余额接口（余额只能显示「—」、今日已用按事件估算），属于半成品。本包**只在 UI 暴露已实测的三家**：DeepSeek 官方 / Command Code / OpenCode Go——其余模板保留在代码表里但**不下发**，不会出现在「新增模型」的厂商下拉里。要放开某家，改 `lib/index.js` 顶部的 `LITE_PROVIDERS` 数组即可。上游的小鲸鱼互动、气泡版式、音效全部原样保留，可随上游更新。
+## 这个 fork 改了什么
 
-## 装在哪里
-
-本仓库现在只维护**一条产品线**（`main`，同一个包同时支持 DSH Web 与官方桌面客户端）。按你要挂在哪里选：
-
-| 你要挂在哪 | 用哪条分支 | 安装方式 |
-|---|---|---|
-| **DSH Web 界面右下角**（就是这个 README 描述的插件） | `main`（默认分支） | `dsh plugin --profile web add dsh-whale-widget-lite`（推荐，装 npm 已发布版）；也可以从本仓库装 `dsh plugin --profile web add github:<your-github-name>/dsh-whale-widget-lite`，但那样装的是 **main 当前状态、不跟随已发布版本** |
-| **官方桌面客户端（Electron）右下角** | `main`（同一个包） | ⚠️ **不能用** `--profile web`（桌面端读的是 `desktop` profile，CLI 也拒绝 `--profile desktop`）—— 在桌面端会话里**让 DSH 自己装**，见下方「官方桌面端（Electron 客户端）请先看这一节」 |
-
-> ⚠️ **与上游 `dsh-whale-widget` 也不能共存**：两者用同一份状态文件与同一个 `/dsh-whale/*` 路由，同时启用会互相抢。换到本插件前请先 `dsh plugin --profile web remove dsh-whale-widget`（桌面端用 `plugin_manager` 卸载）。
-
-
-⚠️ **安装方式二选一、别混用**（npm 名 / `github:`）—— 它们是同一个包名，先后安装会并存冲突；已经是 `github:` 装的，要换 npm 名请先 `dsh plugin --profile web remove dsh-whale-widget-lite`。
-
-## 特性
-
-### 记账与显示
-
-- 🛟 **接口失败也能看到数**（本 fork 新增）：每次查询成功都会把结果存进 `~/.dsh/.dshw-quota-snap.json`（只保留最近 60 个模型）。之后某次查询失败时，气泡继续显示**上次成功的余额与额度**，并在最底下多出一行红色 `(本次查询失败)`（占位符 `{model_plan_stale}`，正常时为空、整行自动隐藏）。「没有订阅该套餐」这类结论不算失败，仍按隐藏处理。
-- 🐋 **常驻自启**：随 DSH Web 界面每次打开自动出现（标准 DSH bundle 插件）
-- 💰 **余额**：60 秒自动刷新 + 点击鲸鱼手动刷新；余额变化时数字**滚动动画**；瞬时网络抖动自动沿用最近余额不报错。**两种取数方式，API key 优先**：① DSH 凭据里的 `DEEPSEEK_API_KEY`；② **DSH 账号登录态** —— 通过「设置 → 账号与余额」登录了 DeepSeek 账号、又没配 API key 时自动使用（**不需要去 platform 建 key**）
-- 📊 **今日已用（小鲸鱼记账）**：不需要任何令牌。余额**下降**按观测累计为消费，余额**上升**（充值 / 赠金）单独记录、不会冲掉已有消费；检测到余额增加会提示「待核对余额调整」，可在「小鲸鱼记账 → **DeepSeek（内置）→ 设置 → 余额校正**」按实际累计到账金额与非调用扣减校正 —— **「已观测消费」与「余额校正」都是 DeepSeek 账户口径**（由该 API key 的余额观测得出，不含其它厂商；「本机模型费用」才是所有模型的本地估算）（逐轮明细保留 90 天或最多 2 万条、逐日归档保留 365 天，超期数据归档到 `.dshw-usage-archive.json`）；金额按 8 位小数记账、显示保留两位
-- 💬 **每轮对话消耗**：监听 DSH 本机会话事件，按模型**真实 usage**（input / cache / output / reasoning tokens）换算金额，每轮结束弹出消耗泡泡；可开关、自动关闭秒数可设（0 = 不自动关闭，**v810 起默认就是 0 = 常驻**），**泡泡内容可自定义**（模块化，金额用 `{cost}` 引用），入口：菜单 → 「音效与提示」→ 「全局设置」→ 展开「每轮消耗提示」→「编辑提示内容」
-- 🔔 **提醒常驻（v810 起默认）**：使用量预警、每轮消耗、提问 / 授权这类**自动弹出**的提醒，弹出后**不会自己消失** —— 一直留到你点击鲸鱼，或被更新的一条提醒覆盖为止，避免一眼没看到就错过。实现上是把提醒 TTL 默认置 0（`sceneOpen` 只在 `ttlMs > 0` 时才布自动关闭计时器）；想恢复定时收起就在「音效与提示 → 全局设置」里填秒数（填 0 / 关掉开关仍是常驻）。注意：点鲸鱼主动查看的那组气泡（余额卡）仍是 5 秒自动收起，不受此改动影响。**v811 起提醒不会堆积**：同一类（消耗 / 预警）只保留最新一条，还在排队时就被新的一条顶掉；想清掉时**点一下鲸鱼或那个泡泡**就一次全关（`whaleSysClearSeen()`），不用逐条点；「等你回答 / 批准」那条不会被点击清掉，仍要等你操作。
-- 🕒 **今日已用怎么算（多厂商模型）**：走**余额差记账** —— 当天第一次取到该厂商余额时记为基准，之后每次余额**下降**的部分累加进"今日已用"（余额上升=充值/重置，不计入）。所以**跨天后的第一个数字必然是 0**，等真的花掉钱才会涨；它不是"从某个账单接口读的官方当日消费"。单位跟着厂商走（Command Code / OpenCode Go 是美元），与内置 DeepSeek 那行的口径分开统计。**v812 起**：页面每 5 分钟自动刷新一次模型数据，点鲸鱼、打开「小鲸鱼记账」也各会抢一次最新值并原地重绘气泡（以前只在打开页面时拉一次，之后界面上的数字会一直是那一次的快照）；取不到数据时显示 `--`，不再显示成 `0.00`。
-- 🧮 **每轮消耗气泡显示上一轮 token 明细（v816，v867 修正输入口径）**：气泡第 3、4 行是 `输入 {tok_in_all} · 输出 {tok_out}` 与 `缓存命中 {tok_cache} · {hit_rate}`。`tok_in_all` = 未命中缓存 + 缓存命中 = 这一轮的**输入总量**（v867 起用它；旧的 `{tok_in}` 只含未命中部分，会出现「输入 66K · 缓存命中 737K」这种反直觉组合）。三个数都是**本轮所有步骤的累计**——一步一次请求、每次都重发上下文，所以步数多的长任务数字会明显大于单次上下文规模，这是计费口径（每次请求都要付费），**不是整个会话的历史总量**。命中率 = 命中缓存的输入 ÷（命中 + 未命中），保留一位小数；token 数按 `123` / `12.3K` / `1.25M` 缩写。数据由宿主在每轮结算时累计（`/dsh-whale/last-turn.json` 的 `input` / `cache` / `output`），与「上一轮对话消耗」同一个结算点，所以刚跑完一轮刷新即准。**同时去掉了「今日已用」那一行** —— 面板与点开的气泡都能查，消耗气泡里放 token 更有信息量。占位符 `tok_in` / `tok_in_all` / `tok_out` / `tok_cache` / `tok_total` / `hit_rate` 任何模块都能用。
-- ⚠️ **旧版宿主 / 无数据时显示 `--`**：`{tok_*}` 依赖宿主下发（v816 起），客户端没重启前这三个数是 `--`；重启后第一轮跑完才有值。`上一轮对话消耗` 的金额本身仍是**本机估算**（按 DeepSeek 官方人民币定价算），与「今日已用（实扣）」不是同一口径 —— 走转售网关时两者可能有倍数差。
-- 🧾 **「今日已用」占位符仍可用**：`{expense_local}`（v815 起 = 当前模型的真实今日花费，与点击气泡同源，取不到回退本机估算合计）与 `{expense_ds}`（DeepSeek 账户余额差口径）都还在，只是不再出现在**出厂**消耗气泡里 —— 想放回去就把模块加回气泡模板。
-  - 取数有两条路：宿主 `balance.json` 下发 `localToday`；若宿主还是旧代码（没重启），前端会自己向 `/dsh-whale/usage-records.json` 要一次今日合计补上 —— 所以**只刷新页面也能立刻看到变化**。
-- ⛰️ **峰谷定价**：工作日高峰 9:00–12:00、14:00–18:00（北京时间），其余空闲；2026-08-23 起**周末全天谷价**。峰谷模块支持状态文字、倒计时、"梁文峰谷 / !?强强?! / 简洁"等多种样式
-- 📒 **用量记录窗口**：今日模型消费、近 7 天、全部记录；模型占比条；按日期展开逐条明细（含时间与金额）；支持按日期或**模型名搜索**；模型名带友好标注（`deepseek-flash` → `DeepSeek-V4.1-Flash`，旧名标注"同 V4.1 Flash"）
-
-### 交互
-
-- 🖱️ **拖拽 + 吸附**：四边吸附区可自定义（按比例或像素），角落可组合；可关闭吸附自由摆放。**顶部吸附默认值为 0，表示关闭**；想开启请到「菜单 → 吸附与翻转 → 自定义」，选择「比例吸附」或「绝对吸附」，把上侧数值调为正值后点「确认」。上吸附以挂件盒中心进入吸附区为判据，大尺寸挂件需要相应扩大上侧区域；改回 0 可关闭顶部吸附（#152）。
-- 🔄 贴左吸附时整体**水平镜像翻转**（文字同步反向、带动画）
-- 🧸 **按压 Q 弹**玩偶效果（按压时底部坐标不变）
-- 🎚️ **主菜单**：角色、大小滑块、**音效与提示**（这行只剩入口按钮「全局设置」，音效总开关已搬进面板）、气泡全局开关 + 「按压泡泡设置」、避让滚动条、吸附设置、隐藏菜单按钮、资源管理（含余额预警、今日预算、小鲸鱼记账）
-- 🔊 **提示与音效设置**（主菜单 → 「音效与提示」→ 「全局设置」）：**四个入口行** —— **按压音效**（音效组、音量）、**每轮消耗提示**（冒泡提示、自动关闭秒数、任务结束音、提示音量）、**提问提示**、**授权提示**。入口行上就是该事件的**总开关**与**当前值摘要**（如 `默认音效组 · 100%`、`自动关 180s · 叮～`），**点一行才展开**该区的设置项（可同时展开多个）。**每个音效都有独立音量**，每行带「试听」；音效行左侧的 `[✓]` 决定该音效**响不响**（不响 = 仍可冒泡）。底栏 `取消 / 恢复默认 / 保存` —— 面板内的改动**只落内存**，点「保存」才生效，点「取消」完整还原（「恢复默认」之后点取消同样能撤销）
-- 🙈 **可隐藏菜单按钮**：隐藏后，电脑端**右键鲸鱼**、手机端**长按鲸鱼约 1.5 秒**唤出菜单
-- 📱 **移动端友好**：鲸鱼可触摸拖动（自研触摸接管，不会把页面手势判成滚动导致拖不动）；泡泡编辑器支持**长按 0.4 秒进入拖拽排序**；去掉了浏览器默认的点击高亮方块
-
-### 泡泡系统（核心）
-
-- 💬 **点击序列**：第一次点击显示"首次点击泡"，再点进入"再次点击"队列；队列可任意增删排序，还能把两泡**并列为 A/B 加权选择**（每轮按权重抽一个）
-- 🔁 **点按角色推进队列**（可选，在「自定义泡泡」窗口里开）：开启后**点一下角色＝往后推进一项**（第 1→2→3…，走到最后一项再点收起泡泡，下次点按从第 1 项重新开始）；关闭时是原来的行为 —— 点角色回到"首次点击泡"。设置只在这个窗口里，随窗口的「保存」一起生效
-- 🧩 **模块化内容**：一个泡泡由若干模块按行组成，支持类型
-  - 文本、超链接
-  - **随机语句**（多条句子带权重，每次显示抽 1 条且不连续重复）
-  - **图片/动图**（从泡泡图库选，独占一整行）
-  - **随机图片**（多张图带权重，抽 1 张且不连续重复，同样独占一行）
-  - **总余额(充值金额+赠金)**、**赠金**、**充值余额**、今日已用、峰谷时段、**对话名**（内置数值，内容自动获取，可调占位符与样式；对话名可设「**保留长度**」，超出部分显示为 `...`，`0` = 不截断）
-    - 三个余额类模块的分工：**总余额(充值金额+赠金)** = 充值余额 + 赠金（`{balance_ds}`，老配置里的模块照旧显示，无需重配）；**赠金**（`{bonus_ds}`）与**充值余额**（`{recharge_ds}`）是单独拆出来的两个模块，取不到数时显示 `—`（真的为 0 才显示 `0.00`）
-- 🎨 **逐模块样式**：字体（含自定义字体）、字号、加粗/斜体/下划线、纯色或**跑马灯渐变**配色、底色；文本与随机语句支持悬浮快捷编辑
-- 🖐️ **拖拽排版**：桌面端原生拖拽、移动端长按拖拽；模块可并入某行首/尾、可拆行、整行可排序；**每行最多 6 个模块、泡泡最多 6 行**，图片类模块独占一行且一个泡泡只允许一个
-- 📚 **模块库**：把常用模块"另存"进库，之后在任意泡泡里点击或拖入复用
-- 🏷️ **菜单底部显示当前版本**（**居中**在最下方按钮与菜单底边之间的空隙里，一行 9px 小字；这行**不改变菜单高度** —— 按钮下边距与菜单下内边距各让出一部分、正好等于这行高度。**开发版**显示"下一个版本号 + beta"，例如 `v0.3.19-beta`）
-
-### 提醒
-
-- 🔔 **余额预警**：余额低于设定值时弹提醒，内容可编辑（含图片/随机图片模块）
-- 💸 **今日预算**：今日已用达到设定金额时弹提醒，内容同样可编辑
-- 💬 **每轮消耗提示**：一轮对话结束后弹消耗泡泡，内容同样可编辑（模块化，金额用 `{cost}`）；**开关、自动关闭秒数、提示音量、任务结束音效与内容编辑入口**都在「音效与提示 → 全局设置」面板的「每轮消耗提示」区（主菜单不再单列这一行）
-- ⏳ **等待交互音效**：DSH **需要你回答提问**、或**需要你批准授权**时会响一声并在气泡里提示（默认都是关闭的；打开后与任务结束音共用同一套音效库）。提示内容里的 `{session}` 会替换成**当前对话名**（读不到就显示「当前对话」，超长自动截断为 12 字符 + `...`）。**同一个未回答的提问只响一次**（刷新页面也不会重复响）
-- 三者都支持自动关闭秒数设置（**默认都是常驻**，不填秒数就一直留着，直到点击鲸鱼或被新提醒覆盖）；气泡模式不可用时自动退化为居中卡片（卡片内也会渲染图片模块）
-
-### 音效 / 角色 / 图片
-
-- 🔊 **按压 & 松开音效**：内置「小黄鸭」「音效1」两套预置；也可导入音频片段并自由组合成**自定义音效组**（槽位可留空 = 该事件静音）
-- 🎵 **任务结束音**：一轮回复完成时播放；内置两个预设音效 —— 默认 **Minecraft·经验球**（`assets/minecraft-exp-orb.wav`）与 **A**（`assets/task-end-a.wav`），也可选任意片段或音效组
-- ⏳ **提问音 / 授权音**：DSH 需要你回答或批准时播放；与任务结束音共用同一套音效库，**各自可调音量**，音效行左侧的 `[✓]` 决定「响不响」（不响 = 仍会冒泡提示）
-- 🔉 **音量：一条全局 + 三条按事件**：①区「按压音效」的音量是**全局基准**（按压 / 松开音用它）；②③④ 区（每轮消耗提示 / 提问提示 / 授权提示）各有一条自己的音量滑块，每行都带「试听」。**没动过某个事件的滑块时，它跟随①区音量**（入口行摘要会写明 `跟随按压音量 N%`）；**一旦你拖过那个滑块，就按你设的值播**（摘要只显示百分比）。这样既能"一个总音量管全局"，也能单独压低某类提示音。
-- ✂️ **音频片段管理**：导入时可视化裁剪、试听；资源管理窗口（菜单 → 资源管理 → 「管理」）按 **图片 / 音频 两个可折叠入口**统一查看/试听/删除 —— 入口行右侧直接显示数量（如 `角色 1 · 泡泡图 2`、`音效组 3 · 片段 4`），点一行才展开明细；「导入片段」在音频那一区里；收起/展开时会顺带停掉正在试听的那一段
-- 🐳 **自定义角色**：上传自己的鲸鱼图片（图库管理，可回退默认）
-- 🖼️ **泡泡图库**：内置 `petpet`、`money1` 两张图，也可上传 png/gif，供图片/随机图片模块使用
-
-### 自定义 API（多厂商余额 / 额度）
-
-除内置的 DeepSeek 余额外，可在「小鲸鱼记账 → 模型」里添加任意厂商；每个模型独立配置余额预警 / 今日预算 / 额度：
-
-- 🧩 **厂商模板（35 个，选完自动带好凭据名 / 币种 / 接口 / 字段路径 / 事件匹配 / 探活地址）**：
-  - **可直接查到余额或额度**：DeepSeek（内置）、OpenRouter、Kimi / Moonshot（CN / 国际）、阶跃星辰 StepFun、Novita、智谱 GLM Coding Plan（国内 / 国际 z.ai）、Kimi Coding、MiniMax Coding（国内 / 国际）、**OpenCode Go（订阅，5h / 周 / 月三窗口）**、**Command Code（订阅，美元余额 + 5h / 周窗口，自动识别 GOAT / Go / Pro / Max / Team 档位）**、OpenAI 兼容中转站（OneAPI / New API）
-  - **官方没有「用 API key 查余额」的接口**（下拉里标注「（无余额接口）」，选完会用 `probeUrl` 探活验证 key，余额显示「—」，今日已用按会话事件估算）：硅基流动（CN / EN）、火山方舟 Ark、OpenAI、Anthropic Claude、Google Gemini、xAI Grok、Groq、Mistral AI、Together AI、Fireworks AI、DeepInfra、Cerebras、阿里云百炼（通义千问）、百度千帆（文心）、腾讯混元、讯飞星火、魔搭 ModelScope、本地模型（Ollama / LM Studio）
-  - **全手填**：自定义 HTTP（URL 与字段路径自己写）、Codex（本地会话，无需接口）
-- 🔑 **密钥不落配置**：密钥写入 DSH 官方凭据服务，配置文件里只存**凭据名**（如 `OPENROUTER_API_KEY`）；删除模型会连带清理该模型的额度模块与设置
-- 💰 **余额**：按模板的接口与 JSON 字段路径读取（支持 `a.b[0].c` 与 `scale` 乘数）；点「测试连通性」可先验证 key
-- 📉 **今日已用**：有余额接口时记录观测到的**下降额**（当天首次观测为统计起点，充值等增加额不会冲掉消费），无余额接口的厂商显示本机会话**估算**
-- 🎯 **额度（订阅 / 资源包）**：填总量即可，已用**按 DSH 会话 token 自动累计**（口径 `input + cacheRead + output`，推理 token 已含在 output 内，跨天保留），也可切换手动填写；支持「不重置 / 每日 / 每月」
-- 🧾 **订阅额度接口（`kind:'quota'` 模板）**：直接读厂商官方接口的「窗口已用% + 重置时间」，与上面按会话统计的额度互补。**支持一个接口返回多个窗口**（OpenCode Go 为 5h / 周 / 月三窗口，Command Code 为 5h / 周两窗口），逐窗口展示已用百分比与各自的紧凑重置倒计时；模板用 `quota.json.windows` 描述各窗口的字段路径，每条窗口可以写 `percent`，也可以写 `used` + `cap`（厂商直接给金额用量时由插件换算百分比，并把绝对值保留下来）。模块编辑器里的「显示样式」窗口下拉是**按模板动态生成**的 —— 两窗口厂商不会多出一个永远空着的「月」
-- 💵 **窗口消费金额**：`used` + `cap` 型厂商（目前是 Command Code）除了百分比，还能显示本窗口真实花掉的金额与上限：模板变量 `{plan_money}`（`$ 0.44 / $ 14.00`）、`{plan_spent}`、`{plan_cap}`；其他厂商这三个变量显示 `--`
-- 💱 **单价（可选）**：位置在「密钥 / 接口」面板 → 展开「接口与字段（高级）」→「单价（可选）」。每个模型可自填单价 —— **缓存命中 / 未命中输入 / 输出**，单位是「币种 / 百万 token」；币种支持人民币（CNY）与美元（USD），**选美元时必须填汇率（元/USD）**；记账与账本**统一按人民币结算**（美元单价会按汇率折算）；单价**不分峰谷**（两个时段同价）。留空则沿用内置价目表（DeepSeek flash / pro）。注意：**内置 DeepSeek 不支持自定义单价**（始终用内置峰谷价）；额度单位选「金额（元）」时，已用**只能手动填写**
-- 🫧 **泡泡模块**：每个模型自动获得「余额·<模型名>」与「额度·<模型名>」两个模块，占位符 `{balance}`、`{today}`、`{quota}`、`{quota_used}`、`{quota_left}`、`{quota_total}`、`{quota_reset}`；多窗口订阅厂商另有「额度」模块（`{plan}`、`{plan_left}`、`{plan_reset}`，加上给金额的厂商可用的 `{plan_money}` / `{plan_spent}` / `{plan_cap}`）。**既有余额又有额度**的厂商（Command Code）会同时给出「额度」与「余额」两个模块，两种口径都能挂
-- 🐳 **「当前模型」气泡（本 fork 新增）**：点一下鲸鱼弹出的第一张卡默认就是**当前会话正在用的模型**，而不是写死 DeepSeek —— 标题固定两行 —— 第一行 `当前提供商`，第二行是模型短名 + 档位（如 `CC Goat`）；再下面是余额、今日已用与订阅额度摘要。用短名是因为完整名 `Command Code（订阅） · GOAT` 在标题行里会撑到气泡外面去（缩写表见下）。为此本 fork 一度把**气泡外框放到 1.45 倍**（`--dshw-pop-grow`，只放大外框、字号不变，净效果是多出四成多排版空间），**v808 起按反馈回到 1.0 倍**：外框 `--dshw-pop-grow` 置 1，文字层 `--dshw-u` 同比例缩回，整块（气泡 + 文字）**等比**缩回原尺寸 —— 行数、顺序、间距比例全都不变，8 行依然放得下。**v809 再把字号回补 1/10**：除数定为 `1.32`（1.45 / 1.1），外框仍是 1.0 倍，只是字更大；调小这个除数就是继续放大字（`1.2` 约再大 10%），调大则字变小。同时把气泡内行距收到 `line-height:1.05`、文本块垂直中心从 36% 抬到 32%；椭圆框的下缘收窄很快，只靠放大外框塞不下 7 行，这三项要一起调才不会顶到描边。气泡渲染原本把**行数上限写死为 6 行**（`ROW_MAX`），额度拆成两行后总数变成 7 行、第 7 行（峰谷计时）会被静默丢弃；所以同时把渲染层 `ROW_MAX` 与编辑器侧 `BUBBLE_PV_ROW_MAX` 一起提到 **7**。 **v806 起标题合并成一行**（`当前提供商：CC Goat`，字号 6）——两行标题占的高度腾给了新的「套餐剩余」行；额度窗口标签改成中文（`5小时` / `周`）；行距从 1u 放到 **2.5u**，多模块拼成的行（`.dshwv-trowline`，如峰谷行）额外再给 5u 上边距，让「提供商 / 账单 / 限额 / 峰谷」四块之间有呼吸感。新增 `{model_plan_period}`（套餐整体剩余，来自 `/alpha/billing/subscriptions` 的周期字段，宿主按候选字段名探测；**取不到时该行为空、整行自动隐藏**，不会留空行）。 **v807 三处调整**：① 标题改成 `提供商：{model_short}` 且标注 `nowrap`——气泡行一旦超宽，渲染层会主动给它写 `white-space:normal` 折行（这正是之前 `CC Goat` 被拆成两行的原因），`nowrap:true` 让该行永远单行显示；② 模块支持 `mt` 字段（单位 u），出厂卡在「账单 / 限额 / 峰谷」三个块首各给 **18u** 上间距，行距本身 2.5u，于是四块之间自然分块；③ 行数上限提到 **8**，最后一行留给查询失败提示。额度部分**按窗口一行一个**（`5h 2.9% · 1h25m` / `周 8.1% · 5d4h`），不再让 `|` 串成一条长龙在气泡里随机断行。这些占位符**任何模块都能用**（纯文本模块也支持，把 `当前提供商 {model_short}` 写在文本里同样会替换），不必把气泡绑死在某个模型上：
-  `{model_short}`（**短名 + 档位**，如 `CC Goat` / `OG` / `DeepSeek`，标题行推荐用这个）、`{model}`（完整名 + 档位，面板类场景用）、`{model_balance}`、`{model_today}`、`{model_plan}`（多窗口逐段 `|` 分隔）、`{model_plan_win}`（同上但不带档位，标题已写档位时用它才放得下一行）、`{model_plan_win1}` / `{model_plan_win2}`（**按窗口拆行**：第一个窗口一行、第二个窗口一行；单窗口厂商的第一个占位符回退成整段摘要、第二个为空，不会多出一个空的 `--` 行）、`{model_plan_used}`、`{model_plan_left}`、`{model_plan_reset}`、`{model_plan_money}` / `{model_plan_spent}` / `{model_plan_cap}`、`{model_level}`。当前模型由宿主按会话事件里的 `provider/model` 实时下发（用 `matchIds` 归属到你的模型条目），**重启后会用账本最后一条记录恢复**；认不出来的厂商自动回退到内置 DeepSeek，不会留空。短名表：`commandcode` → `CC`、`opencode_go` → `OG`、`deepseek` → `DeepSeek`；表里没有的模板取英文名各词首字母（`Kimi Coding` → `KC`），中文名原样保留
-  > ⚠️ **同名模型靠 provider 消歧**：Command Code 这类转发商会把模型名写成和官方一模一样的 `deepseek/deepseek-v4.1-flash`，光看名字会错归到内置 DeepSeek（就表现为「明明在花 Command Code 的钱，气泡却在报官方余额」）。所以插件同时读会话事件里的 `source.provider`（实测为 `commandcode`），**先按 provider 精确命中你的自定义模型**，再退回按名字匹配。刚重启、还没跑过任何一轮对话时，账本里只有旧记录（旧记录不带 provider），此时会再退一级读 profile 补丁里 `agent-default-model` 的 `provider` / `model` 兜底；三级都拿不到才回退内置 DeepSeek
-- 📊 **模型行同显余额与额度**：Command Code 这类「既有余额接口又有订阅额度」的厂商，模型列表行会显示 `余额 $ 63.32 · 额度 5h 3.9% · 9h59m | 周 6.4% · 5d23h | GOAT`，一眼看到**还剩多少钱**，不再被额度行覆盖
-
-> 说明：并非所有厂商都提供「用 API key 查余额」的接口。**硅基流动**的余额接口已被官方下线（[2026-08-11 更新公告](https://api-docs.siliconflow.cn/docs/release-notes/overview)：`/user/info` 自 **2026-08-14** 起停止服务，「后续将适时提供替代 API」，截至发版仍未见替代接口），**火山方舟**的余额 / 用量与**阿里云百炼 / 百度千帆 / 腾讯混元**一样属于各家云平台 AK/SK 签名的 OpenAPI，**OpenAI / Anthropic / Gemini / xAI / Groq / Mistral / Together / Fireworks / DeepInfra / Cerebras** 则根本没有公开的余额查询接口 —— 这些模板统一是「无余额接口 + 探活验证 key」，今日已用按会话事件估算。厂商的**订阅额度**接口（智谱 / Kimi Coding / MiniMax Coding / OpenCode Go / Command Code）只对订阅套餐账号有效：Token 资源包账号调用智谱接口会返回「当前用户不存在coding plan」，这种情况请用上面的「额度（订阅 / 资源包）」自动统计。
->
-> 模板只提供**默认值**：选完模板后可以随意改写接口地址与字段路径；留空的字段会**继续沿用模板默认值**（不会因为留空而失效）。
-
-### 接入 Command Code / OpenCode Go
-
-两者都是「订阅套餐」型厂商，走同一套 `kind:'quota'` 模板，不需要额外插件或脚本：
-
-1. 「小鲸鱼记账 → 模型 → **+ 添加模型（自定义 API）**」
-2. 「厂商模板」选 **Command Code（订阅）** 或 **OpenCode Go（订阅）**；凭据名、币种、接口地址、字段路径会自动带好（之后留空即沿用模板默认值）
-3. 在「密钥」里填该厂商的 API key，点「测试连通性」验证
-4. 保存后泡泡里出现「额度·<模型名>」模块（Command Code 还会多一个「余额·Command Code」模块，两种口径都能挂）
-
-| 厂商 | 凭据名 | 查什么 | 接口 |
-|---|---|---|---|
-| Command Code | `COMMANDCODE_API_KEY` | 余额（USD）、5h 窗口、周窗口、套餐档位 | `GET https://api.commandcode.ai/alpha/billing/credits`，档位另查 `/alpha/billing/subscriptions` |
-| OpenCode Go | `OPENCODE_GO_API_KEY` | 5h / 周 / 月三窗口已用% | `GET https://opencode.ai/zen/go/v1/usage` |
-
-Command Code 的档位由 `subscriptions` 返回的 `planId` 自动翻译（`individual-goat` → **GOAT**、`individual-go` → Go、`individual-pro` → Pro、`individual-max-10x` / `individual-max-20x` → Max 10x / Max 20x、`team-pro` → Team Pro）；档位接口失败时只影响标签，余额与窗口百分比照常显示。
-
-> ⚠️ **OpenCode Go 未做真机联调**：接口按官方 `/zen/go/v1/usage` 的公开结构实现（`usage.rolling` / `weekly` / `monthly` 里的 `percent`、`resetsAt`，`percent` 为**已用**百分比），开发时手上没有该套餐的 key。窗口缺失会自动跳过；若你的返回结构不同，可在「接口与字段（高级）」里直接改字段路径。
-
-### Codex 模式（本地会话统计）
-
-> ℹ️ **先分清楚**：这一节说的是本插件**读取本机 Codex 会话日志**的能力（就是把 Codex 当数据源），
-> 与「Codex 版小鲸鱼」挂件（跟随 Codex 窗口的那个端口，已由上游迁至独立仓库）是两回事 —— 本仓库只提供 DSH 挂件。
-
-> ⚠️ **限制**：Codex 支持目前只是**部分接口适配**，本挂件**不能安装到 Codex 里**（它是 DSH Web 插件，Codex 仅作为数据来源被读取）；订阅窗口没有真实订阅样本可验证，遇异常欢迎反馈。
-
-挂件可以直接读本机 Codex 的会话日志统计 token 用量 —— 因此**不限于 DSH 内部**，你在 Codex CLI / 桌面版里跑的消耗也能看到。
-
-- 📂 **数据来源**：`$CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl`（含 `archived_sessions/`），明文 JSONL；只读本机文件、**不联网、不需要密钥**，也不会写入 `~/.codex`
-- 📈 **统计口径**：优先用日志里累计量（`total_token_usage`）的**差值**累加，天然避免同一轮多条记录被重复计数；模型归属由 `turn_context.payload.model` 判定；按天 + 模型聚合，带增量缓存（`$DSH_HOME/.dshw-codex.json`，只存聚合与文件偏移）
-- 🖥️ **显示**：模型列表显示 `Codex 今日 x · 近7天 y tokens`；模型子菜单显示今日 / 本月 / 累计 / 近7天与会话文件数；「测试」按钮直接返回本地统计
-- 🎯 **额度**：该模型的「额度」里，已用来源可选 **Codex 本地会话 token**（不重置＝累计−基准、每日＝今日、每月＝本月），复用同一套展示与泡泡模块
-- 🪟 **订阅窗口（5h / 周）**：日志里的 `rate_limits` 带窗口快照，有 ChatGPT 订阅时子菜单自动追加 `5h 已用 x% · 2小时30分后重置 | 周 已用 y% · 3天后重置`（字段名已做容错；API-key 计费或无订阅时该行不显示）
-
-## 目录结构
-
-```text
-dsh-whale-widget-lite/
-├── package.json              # DSH bundle 插件元数据（dsh.bundle.patch 指向 cordis.patch.yml；顶层 icon 指向 icon.png）
-├── icon.png                  # 插件列表图标（256×256 PNG，含透明；宿主读成 data URL 塞进 meta.icon，必须是正方形）
-├── README.md                 # 本文件
-├── cordis.patch.yml          # 插件挂载声明
-├── lib/
-│   ├── index.js              # 宿主侧插件本体（路由 + 记账 + 音效/图片/角色服务）
-│   └── accounting.mjs        # 记账内核（定点金额运算 + 余额观测/校正账本）
-├── assets/
-│   ├── whale-widget.js       # 前端挂件本体（由宿主按 mtime 热读取）
-│   ├── DSH2.png              # README 顶部展示图
-│   ├── DSniang1.png          # 小鲸鱼本体（cut-out，气泡由代码绘制）
-│   ├── DSniang02.png         # 备用整图（兼容旧版手动安装路径）
-│   ├── rua.gif               # 随机台词/撒娇动图（可选）
-│   ├── Ya1.mp3 / Ya2.mp3     # 预置音效「小黄鸭」按压 / 松开
-│   ├── D1.mp3 / D2.mp3       # 预置音效「音效1」按压 / 松开
-│   ├── minecraft-exp-orb.wav # 任务结束音内置默认音效（Minecraft·经验球）
-│   ├── task-end-a.wav        # 任务结束音内置预设（A）
-│   ├── bubble-petpet.gif     # 内置泡泡图：petpet
-│   └── bubble-money1.gif     # 内置泡泡图：money1（余额预警默认内容的配图）
-└── whale-widget-prompt.md    # 完整规格/维护提示词（面向二次开发）
-```
-
-运行时数据（都放在 `$DSH_HOME`，默认 `~/.dsh`；用环境变量 `DSH_HOME` 可以改到别处）：
-
-| 文件 / 目录 | 用途 |
+| 改动 | 说明 |
 |---|---|
-| `.dshw-size.json` | 挂件外观与开关（缩放、音量、音效组、峰值样式、吸附相关等） |
-| `.dshw-usage.json` | 记账账本 + 按日余额观测/校正摘要 + 用量设置（任务结束音、余额预警、今日预算、每轮消耗提示内容，以及 **`events`**：按压 / 每轮消耗 / 提问 / 授权四个事件的音效选择、独立音量、冒泡配置；**每轮消耗的自动关闭秒数存在 `.dshw-size.json` 的 `turnCostCloseMs`**） |
-| `.dshw-usage.json.before-recharge-fix.bak` | 旧格式账本备份（0.3.1 首次写入旧账本前自动创建；已存在则不覆盖） |
-| `.dshw-turn.json` | 每轮消耗的 seq（避免热重载后前端把新轮次当旧轮次） |
-| `.dshw-bubble.json` | 自定义泡泡配置（点击序列 + 模块库 + 点按角色推进队列开关） |
-| `.dshw-api.json` | 自定义 API 模型注册表（厂商 / 凭据名 / 接口字段 / 自定义单价 / 额度与用量累计；**不含密钥**） |
-| `.dshw-usage-archive.json` | 账本归档（超过保留期的逐轮明细与逐日汇总；明细 90 天/2 万条、逐日 365 天） |
-| `.dshw-codex.json` | Codex 本地会话统计缓存（按天/模型聚合 + 文件偏移；**不含任何凭据**） |
-| `whale-roles/` | 自定义角色图 + `roles.json` 索引 |
-| `whale-audio/` | 音频片段 `<id>.wav` + `audio.json` 索引（音效组/片段） |
-| `whale-bubble-imgs/` | 泡泡图库图片 + `bubble-imgs.json` 索引 |
+| 只保留三家厂商 | 下拉里只暴露 DeepSeek 官方、Command Code、OpenCode Go；上游其余 30+ 家模板仍在代码表里，但不下发、不显示（`LITE_PROVIDERS` 白名单，只过滤下发不删表，旧模型配置不会丢） |
+| 轮末气泡按厂商显示 | Command Code 只显示本轮金额 + 5h 已用/剩余；DeepSeek 官方与本 fork 的 OpenCode Go 只显示本轮信息，不再显示「今日已用」 |
+| CmdC 按美元计价 | 仅 `deepseek-v4.1-flash` / `deepseek-v4.1-flash-fast` / `deepseek-v4-pro` 在轮末气泡显示美元金额（谷峰价）；其余 CmdC 模型不显示金额，但仍进入账本 |
+| OpenCode Go 同口径 | 仅 `deepseek-v4.1-flash` / `deepseek-v4-pro` 显示美元金额；其余模型（Kimi / GLM / Qwen / MiniMax …）不显示 |
+| 模型名友好化 | 气泡与面板显示成 `CmdC：DeepSeek V4.1 Flash` 这类可读名称，代替原始 `provider/model` 串 |
+| 面板费用块 | 整合为「DeepSeek V4 近7日费用」，只统计官方渠道、按余额差口径（准确优先）单列展示 |
+| 历史记录修复 | 修复「小鲸鱼记账」历史记录永久卡「加载中…」的问题（路由异常 + 前端占位兜底） |
+
+改动细节以 [`PROVENANCE.md`](PROVENANCE.md) 为准（每版一段，含根因与验证方式）。
 
 ## 安装
 
-### 官方桌面端（Electron 客户端）请先看这一节 ⚠️
-
-**桌面端读的不是 `web` profile。** 官方桌面客户端用的是 **`desktop` profile**（`%USERPROFILE%\.dsh\profiles\desktop`），而 `dsh plugin` 命令行**按设计拒绝**碰它：
-
-```
-error: profile "desktop" is managed exclusively by the Electron application
-```
-
-所以下面「方式 A~D」里的 `--profile web` 命令**对桌面端不适用** —— 按它装完，插件落在 `web` profile 里，而桌面窗口读的是 `desktop` profile，一个字也读不到。表现就是「右下角什么都没有（连 ☰ 也没有）、控制台也不报错」。
-
-**桌面端的正确装法：明确使用当前宿主内置的 `plugin_manager`。**
-
-在桌面客户端的会话里可直接说：
-
-> 请使用当前桌面端内置的 `plugin_manager` 安装 `dsh-whale-widget-lite`。先核对当前 profile 和是否已有同名插件；已有安装时先报告来源与版本。按该工具支持的操作完成后，告诉我安装结果及是否需要重启。
-
-`plugin_manager` 的作用域是当前 profile（桌面端为 `desktop`），由宿主使用其自带的包管理器完成安装与挂载登记。需要固定版本时，将安装规格改成 `dsh-whale-widget-lite@<目标版本>`。这条说明用于减少安装前后的无关探索（#194）；不需要自行构造认证 cookie、调用底层 RPC 或改写宿主管理的 profile 文件。工具不可用或操作不受支持时，先说明缺少哪项宿主能力，不绕过桌面端限制改用 `--profile web`。
-
-**首次安装与升级的生效方式**（#162）：
-
-- **首次安装**：工具可能返回 `"application":"applied"`，但这不保证当前窗口已显示挂件。若装完没有出现，完全退出客户端（含系统托盘）后重新打开，再按下方两条自检排查。
-- **升级已有安装**：先核对已安装的来源、实际版本和目标版本，优先通过内置工具支持的更新/升级操作沿用同一来源；不要为了更新无故在 npm、GitHub 和本地目录之间切换。返回 `"restart-required"` 时完全退出并重开，随后重新核对实际版本。
-- **旧宿主没有更新入口**：例如 #162 报告的桌面端 `0.1.7-rc.2`，页面没有升级入口，重新“添加”带版本的同名包也可能只返回“已安装”。先检查该宿主内置工具是否支持同来源更新；若工具也不支持，保留当前安装，按宿主支持的升级方案处理。只有明确需要卸载再安装或迁移来源时，才先保留原来源、精确版本和用户数据的恢复办法；不要把卸载、删除依赖目录/锁文件当作通用更新步骤。
-
-命令行侧的 `dsh web` 使用自己的 `web` profile：更新后重启宿主，再在浏览器按 `Ctrl+F5`。
-
-**装完怎么自检**（两条分别对应宿主半区与客户端半区）：
-
-- **宿主半区**：`%USERPROFILE%\.dsh\.dshw-turn.json` 存在，且 `seq` 随对话递增；
-- **客户端半区**：桌面端 `%APPDATA%\@deepseek-ai\dsh-desktop\Local Storage\leveldb` 里出现 `dshw-pos` / `dshw-last-seq` —— 这两个键**只有挂件前端**会写。
-
-桌面端界面里看不到插件版本号时，可以看 `%USERPROFILE%\.dsh\profiles\desktop\package.json` 的 `dsh.profile.bundles` 和同目录的 `pnpm-lock.yaml`。
-
-> 下面方式 A~D 都是 **Web（`dsh web`）** 的安装方式。
-
-### 方式 A：已有本插件的完整资源包（本地目录 / 压缩包）（推荐）
-
-适用于别人直接发给你一个 zip，或你手上已有一份解压好的插件目录（目录里应有 `package.json`、`cordis.patch.yml`、`lib/`、`assets/`、`README.md`）。
+桌面端（Electron 客户端，推荐）：
 
 ```powershell
-# 1) 若是 zip：先解压到一个固定、以后不会移动或删除的目录（不要放临时目录/下载目录）
-#    例：D:\Plugins\dsh-whale-widget-lite
-#    要安装的是「包含 package.json 的那一层」，不要多套一层同名目录
-
-# 2) 确认关键文件都在（缺 assets/ 会导致没图、没声）
-Test-Path "D:\Plugins\dsh-whale-widget-lite\package.json",
-          "D:\Plugins\dsh-whale-widget-lite\lib\index.js",
-          "D:\Plugins\dsh-whale-widget-lite\assets\whale-widget.js"
-
-# 3) 如果之前从 GitHub / npm 装过同名插件，先卸载避免版本冲突
-dsh plugin --profile web remove dsh-whale-widget-lite
-
-# 4) 用绝对路径安装（路径含空格要加引号）
-dsh plugin --profile web add link:D:\Plugins\dsh-whale-widget-lite
+# 从本地源码安装（link 模式，改前端代码刷新即生效）
+dsh plugin --profile desktop add "link:D:/Coding/dsh-whale-widget-lite"
 ```
 
-说明：
+或使用 `plugin_manager` 的 `install_bundle`，target 填 `link:D:/Coding/dsh-whale-widget-lite`。
 
-- `link:` 是**软链安装**：源目录里的文件改了立即生效；但安装后**不能移动/重命名该目录**，移动了要重新 add 一次
-- 想改用拷贝安装：`dsh plugin --profile web add file:D:\Plugins\dsh-whale-widget-lite`（此后源目录再改不会同步，需重新 add）
-- 资源包自带 `assets/minecraft-exp-orb.wav`、`assets/task-end-a.wav` 等内置资源；**删掉 assets 里的文件会让对应功能静默降级**（无图/无声）
-- 装完同样要重启 `dsh web`，再 F5 刷新浏览器
+装完**重启 DSH 桌面客户端**（改宿主 `lib/index.js` 必须重启才生效；只改 `assets/whale-widget.js` 刷新页面即可）。
 
-### 方式 B：直接从 GitHub 安装
+其它安装方式（资源包 / GitHub / npm）见 [README.upstream.md](./README.upstream.md) 的「安装」一节，把包名换成 `dsh-whale-widget-lite` 即可。
 
-无需本地克隆，一条命令安装：
+> ⚠️ 不要与上游 `dsh-whale-widget` 同时启用：两者共用同一份状态文件与 `/dsh-whale/*` 路由，会互相抢。
 
-```powershell
-dsh plugin --profile web add github:<your-github-name>/dsh-whale-widget-lite
-```
+## 版本
 
-说明：
+当前版本：`0.4.2-lite.11`
 
-- 装完后插件会出现在 DSH 的**插件管理页面**里，之后可以直接在页面里更新，无需再手动执行命令
-- 网络环境需要代理时，先设置代理环境变量再执行：
-  ```powershell
-  $env:http_proxy="http://<ip>:<port>"; $env:https_proxy="http://<ip>:<port>"; $env:all_proxy="socks5://<ip>:<port>"; dsh plugin --profile web add github:<your-github-name>/dsh-whale-widget-lite
-  ```
-- 安装完成后重启 `dsh web`，再 F5 刷新浏览器
+- 上游基线：`v0.4.2`（commit `5247dd6`）
+- 同步上游：仓库保留 `upstream` remote 指向原仓库；上游发版后 rebase 到最新 tag，冲突集中在 `package.json` / `README` / `PROVENANCE.md` / `lib/index.js` / `assets/whale-widget.js` 五处。
 
-### 方式 C：本地安装（从当前仓库）
+## 目录结构
 
-在**仓库根目录**（`package.json` 所在目录）执行：
+与上游一致：
 
-```powershell
-dsh plugin --profile web add link:.
-```
+- `lib/index.js` —— 宿主逻辑（余额/额度采集、会话事件记账、HTTP 路由）
+- `assets/whale-widget.js` —— 前端挂件（气泡、面板、提醒、音效，无构建步骤）
+- `cordis.patch.yml` —— DSH bundle 补丁
+- `PROVENANCE.md` —— 与上游的差异记录（本 fork 的改动台账）
+- `README.upstream.md` —— 上游原版 README（fork 基点版本）
 
-说明：
+## 许可
 
-- `dsh plugin` 会把参数转发给 pnpm，并在成功后自动把 `dsh-whale-widget-lite` 加入 `dsh.profile.bundles`
-- **`link:.` 表示链接当前目录**（仓库根目录本身就是插件包）。如果仓库在别处，用绝对路径：
-  ```powershell
-  dsh plugin --profile web add link:D:\你的路径\DeepSeek-Balance-Whale-Widget
-  ```
-- ⚠️ 不要用 `link:.\dsh-whale-widget-lite`——仓库里**没有** `dsh-whale-widget-lite/` 子目录，这样会安装成普通依赖而非插件
-- 安装完成后重启 `dsh web`，再 F5 刷新浏览器
-- **移动了源码目录**后必须重新执行一次 `add link:<新路径>`；若提示冲突，先 `dsh plugin --profile web remove dsh-whale-widget-lite` 再 add
-
-### 方式 D：发布到 npm 后安装
-
-```powershell
-dsh plugin --profile web add dsh-whale-widget-lite
-```
-
-### 给 AI 的安装说明（Web 使用；桌面端使用上面的 `plugin_manager` 提示）
-
-```
-请帮我安装插件 dsh-whale-widget-lite。可能的来源有两种：GitHub 仓库
-<your-github-name>/dsh-whale-widget-lite，或者我本地已经有这个插件的「完整资源包」。
-
-先确认运行形态：如果当前是官方桌面客户端，请使用宿主内置 plugin_manager，
-不要执行下面的 Web 命令，也不要自行构造认证/RPC或修改 desktop profile。
-
-以下步骤仅用于 dsh web：
-1. 确认 DSH 安装器使用的 pnpm 可用；若提示找不到 pnpm，先报告安装器所用路径和版本，
-   按该 DSH 版本的安装说明处理，不直接假定需要全局安装或重装插件。
-2. 在 Web profile 安装（按我实际拿到的来源任选一种）：
-
-   【来源一：从 GitHub 安装】
-     dsh plugin --profile web add github:<your-github-name>/dsh-whale-widget-lite
-   或从本地 git 仓库链接安装：
-     dsh plugin --profile web add link:<仓库绝对路径>
-   （注意：仓库根目录就是插件包，不要写成 link:.\dsh-whale-widget-lite 这种带子目录的路径）
-
-   【来源二：我本地已有完整资源包（zip 或已解压目录）】
-   先确认「完整资源包」长什么样：一个目录，里面应当有
-     package.json、cordis.patch.yml、lib/index.js、
-     assets/（含 whale-widget.js、DSniang1.png、Ya1.mp3、minecraft-exp-orb.wav、task-end-a.wav 等）、README.md
-   然后按下面做：
-   a) 如果给我的是 zip：先解压到一个**固定、以后不会移动或删除**的目录，例如
-        D:\Plugins\dsh-whale-widget-lite
-      不要解压到临时目录/下载目录/会被清理的位置；也不要多套一层——
-      要安装的是**包含 package.json 的那一层**，不是外面那个同名压缩包目录
-   b) 检查文件完整性（任意一条 False 就先告诉我，不要继续装）：
-        Test-Path "<资源包目录>\package.json"
-        Test-Path "<资源包目录>\lib\index.js"
-        Test-Path "<资源包目录>\assets\whale-widget.js"
-      并确认 package.json 里 name 是 dsh-whale-widget-lite、带 dsh.bundle.patch 字段
-   c) 如果之前从 GitHub / npm 装过同名插件，先卸载避免版本冲突：
-        dsh plugin --profile web remove dsh-whale-widget-lite
-   d) 用**绝对路径**安装（路径含空格要加引号）：
-        dsh plugin --profile web add link:<资源包目录>
-      link: 是软链安装：源目录改了立即生效，但安装后不能移动/重命名该目录；
-      移动后必须重新执行一次 add。若想按拷贝安装可用：
-        dsh plugin --profile web add file:<资源包目录>
-      （file: 以后源目录改动不会同步，需要重新 add）
-
-3. 如果报 pnpm 阻止构建脚本（allowBuilds 相关），先确认被阻止的是哪个包。
-   本插件没有安装/编译脚本；不要因此放行所有依赖的构建脚本，按具体报错处理。
-4. 重启 dsh web，然后 F5 刷新浏览器
-
-安装后验证：
-- dsh --profile web --dump-config 应该能看到 dsh-whale-widget-lite 在 bundles 里
-- curl http://127.0.0.1:3080/dsh-whale/balance.json 应返回 200 JSON（含 totalBalance）
-- curl http://127.0.0.1:3080/dsh-whale/widget.js 应返回 200 JS
-- curl "http://127.0.0.1:3080/dsh-whale/audio-fragment.wav?id=exp_orb" 应返回 200 audio/wav
-- curl "http://127.0.0.1:3080/dsh-whale/audio-fragment.wav?id=end_a" 也应返回 200 audio/wav
-  （用来确认资源包里的内置音效已随包就位；若是 404 说明 assets/ 不完整）
-
-另外请检查 DSH 凭据里是否配置了 DEEPSEEK_API_KEY（没有就提示用户配置；如果用户是用 DSH 账号登录的，较新 DSH 上不配 key 也能取余额，**别把"没 key"当成故障**）。
-```
-
-## 凭据（安装后必读）
-
-**余额有两种取数方式（API key 优先，两者互不干扰）：**
-
-- **`DEEPSEEK_API_KEY`（推荐）**：DeepSeek API 密钥，用于拉取余额（`GET https://api.deepseek.com/user/balance`）。在 DSH 凭据服务里配置（凭据管理界面 / `.dsh/.credentials.yaml`）。
-- **DSH 账号登录态（可选，**不需要** API key）**：如果你是通过 DSH 的「设置 → 账号与余额」**登录 DeepSeek 账号**的，插件会在**没有 API key 时自动**改用 DSH 自己的账号服务取余额（充值钱包 + 赠金钱包，两者相加作为记账基准）。token、平台请求头与失效清理都由 DSH 负责，**插件不接触你的账号令牌**。
-  - 需要**较新的 DSH**（如桌面端 `0.1.7-rc.2`）才有这个服务；老版本、未登录、或账号没有余额钱包时，会回到下面的「未配置」提示。
-  - 账号态与 API key 态的**账本是分开的**（按账号标识区分）：从 API key 换成账号登录后，"今日已用"会从新的观测重新起算。
-
-> **不需要** `DEEPSEEK_PLATFORM_TOKEN`。早期版本的"实时·令牌"模式已下线，今日已用统一由**小鲸鱼记账**（余额差 + 会话事件）计算，零令牌开箱即用。
-
-### 安全边界（0.3.15 起，**请务必一读**）
-
-插件会把凭据交给谁、以及谁能改这件事的规则：
-
-1. **凭据只会发往"该厂商内置模板里写死的端点"**。
-   自定义模型里如果填了一个**不在该厂商模板内**的接口地址（或者模板地址里用 `{base}` 指向你自己填的地址），插件**默认不会把凭据发过去**，而是返回一条明确提示。
-   - 自建网关（New API / 自托管 / Ollama 等）确实需要自定义地址：请**在这台机器本机**打开插件面板，对该模型勾选「**允许把凭据发送到自定义地址**」。这是按模型保存的一个显式标志。
-2. **配置与凭据的改动只能来自本机（回环地址）**。
-   所有写请求（保存模型、写/删凭据、改外观设置等）如果来源不是 `127.0.0.1` / `localhost` / `[::1]`，一律 `403`。
-   - 为什么：任意持有 DSH Web 会话的人如果能写模型配置，就等于能决定"凭据被发往哪里" —— 那会把你的 API key 直接送到对方服务器上。**只读接口不受影响**（局域网里照常能看挂件）。
-   - 需要远端管理？用环境变量显式声明：`DSHW_ADMIN_HOSTS=192.0.2.10:3080,myhost.lan`（逗号分隔，可带端口；默认空）。
-3. 接口地址不允许携带用户名/密码（`https://user:pass@host/`），凭据名只允许字母、数字与下划线。
-
-添加自定义模型时，还会按需用到各自厂商的凭据名（都可不配，用到哪个配哪个）：
-
-| 凭据名 | 用途 |
-|---|---|
-| `OPENROUTER_API_KEY` | OpenRouter 余额（`/api/v1/credits`） |
-| `MOONSHOT_API_KEY` | Kimi / Moonshot 大陆站余额（人民币） |
-| `MOONSHOT_INTL_API_KEY` | Kimi / Moonshot 国际站余额（美元，独立账号体系） |
-| `SILICONFLOW_API_KEY` | 硅基流动 `/v1/models` 探活 |
-| `ARK_API_KEY` | 火山方舟 `/api/v3/models` 探活 |
-| `ZHIPU_API_KEY` | 智谱（订阅额度接口 / Coding 端点） |
-| `OPENCODE_GO_API_KEY` | OpenCode Go 订阅额度（`opencode.ai/zen/go/v1/usage`，鉴权为 `Authorization: Bearer <key>`） |
-| `COMMANDCODE_API_KEY` | Command Code 订阅额度 + 余额（`api.commandcode.ai/alpha/billing/credits`，档位查 `/alpha/billing/subscriptions`，均为 `Authorization: Bearer <key>`） |
-| `CUSTOM_API_KEY` | 自定义 HTTP / OpenAI 兼容中转站 |
-
-> ⚠️ 自定义模型面板里的「凭据名」决定密钥写进哪个 ref。换厂商时请确认这一栏跟着模板变了，否则新密钥会写进上一家厂商的凭据名里（覆盖掉原来的 key）。v679 起新增模型会自动跟随模板。
-
-## 卸载
-
-```powershell
-dsh plugin --profile web remove dsh-whale-widget-lite
-```
-
-## 从旧手动安装升级
-
-如果你之前按旧方式手动安装过（复制 `whale-balance.mjs` + 改 `cordis.patch.yml`），先清理：
-
-```powershell
-$web = "$env:USERPROFILE\.dsh\profiles\web"
-
-Remove-Item "$web\whale-balance.mjs" -ErrorAction SilentlyContinue
-Remove-Item "$web\whale-balance.cjs" -ErrorAction SilentlyContinue
-Remove-Item "$web\DSniang1.png" -ErrorAction SilentlyContinue
-Remove-Item "$web\DSniang02.png" -ErrorAction SilentlyContinue
-```
-
-然后编辑 `$web\cordis.patch.yml`，删除这段旧补丁：
-
-```yaml
-- insert:
-    - id: whale-balance-widget
-      name: ./whale-balance.mjs?v=1
-```
-
-如果里面只有这段，直接改成：
-
-```yaml
-[]
-```
-
-清理后再执行上面的安装命令。
-
-## 验证
-
-```powershell
-dsh --profile web --dump-config | Select-String -Pattern "whale"
-
-curl http://127.0.0.1:3080/dsh-whale/balance.json
-curl http://127.0.0.1:3080/dsh-whale/size.json
-curl http://127.0.0.1:3080/dsh-whale/widget.js
-curl http://127.0.0.1:3080/dsh-whale/image.png
-curl http://127.0.0.1:3080/dsh-whale/audio.json
-```
-
-- `/dsh-whale/balance.json` → 200 JSON，含 `{ok:true, totalBalance, currency, todayUsage}`
-- `/dsh-whale/size.json` → GET 返回配置；PUT 写入
-- `/dsh-whale/widget.js` → 200 JS（前端挂件本体）
-- `/dsh-whale/image.png` → 200 `image/png`
-- `/dsh-whale/audio.json` → 200，含 `groups` / `fragments`（其中内置片段 `exp_orb` = Minecraft·经验球、`end_a` = A）
-- `/dsh-whale/audio-fragment.wav?id=exp_orb` → 200 `audio/wav`（内置任务结束音；无需用户导入）
-- `/dsh-whale/audio-fragment.wav?id=end_a` → 200 `audio/wav`（内置任务结束音 A）
-- `/dsh-whale/wait.json` → 200 JSON，含 `{ok:true, pending}`；`pending` 为当前挂起的「提问 / 授权」（`{kind:'question'|'approval', id, ts}`）或 `null` —— 这是「提问提示 / 授权提示」音效与常驻气泡的数据源（默认每秒轮询一次）
-- `/dsh-whale/about.json` → 200 JSON：菜单底部版号那行点开后的「关于 / 自检」面板数据源（版本、通道、文件路径与时间、数据落点、记账/余额/Codex 状态；路径已脱敏，**点开才请求**）
-- `/dsh-whale/update-check.json` → 200 JSON：检查更新（`{ok, current, latest, hasUpdate, source}`）；**点了才联网**，镜像优先（npmmirror → jsdelivr → unpkg → npmjs）+ `npm view` 兜底，宿主侧 10 分钟缓存
-- 浏览器 F5 后右下角出现挂件
-
-### 本 fork 新增能力的验证（Command Code / OpenCode Go）
-
-1. **面板**：菜单 → 「小鲸鱼记账」→「模型」→「+ 添加模型（自定义 API）」→ 厂商模板选 `Command Code（订阅）`，凭据名应为 `COMMANDCODE_API_KEY`，填入 key 后「测试连通性」。成功时应看到美元余额与两个窗口（5h / 周），并且档位识别为 `GOAT` / `Go` 等。
-2. **接口**：在带会话的浏览器里打开 `/dsh-whale/api-models.json`，找到该模型的条目，应包含：
-   - `planSupport: true`、`hasBalanceApi: true`、`balanceMode: 'api'`
-   - `plan.windows` 两项：`{key:'rolling', label:'5h', usedPct, spent, cap, resetAt}` 与同样形状的 `weekly`
-   - `plan.level`（如 `GOAT`，来自 `subscriptions` 接口；该接口失败时为空，不影响其余字段）
-3. **泡泡**：模块编辑器里「显示样式」的窗口下拉在 Command Code 上应只有「全部（5h / 周）」「5h」「周」（不会出现空着的「月」）；「余额·Command Code」与「额度·Command Code」两个模块都能挂，分别用 `{balance}` 与 `{plan}` / `{plan_money}`。
-4. **当前模型气泡**：直接用 `commandcode/<模型>` 跑一轮对话，然后点鲸鱼 —— 第一张卡应为两行标题（`当前提供商` / `CC Goat`）+ 美元余额 + `今日已用 $ …` + `5h … | 周 …`（末行不再重复档位，所以一行放得下，不会溢出气泡）；切回 DeepSeek 跑一轮再点，第二行自动变回 `DeepSeek`。若换模型后卡片没变，说明该会话还没有产生 `assistant/message` 事件（宿主只在真实用量上报时更新）。
-   判定依据是会话事件里的 **`source.provider`**，不是模型名：Command Code 转发的模型名与官方完全相同（都是 `deepseek/deepseek-v4.1-flash`），只有 provider 能区分。刚重启还没跑过对话时，账本里只有不带 provider 的旧记录，此时退回读 profile 补丁里 `agent-default-model` 的默认 provider；两级都取不到才回退内置 DeepSeek。**改了宿主代码必须重启 DSH 客户端**（刷新页面只重载前端，不会重载 `lib/index.js`）。
-5. **模型行**：同一条 Command Code 在「模型」列表里应显示 `余额 $ … · 额度 …`（不再只剩额度）。
-6. **OpenCode Go**：同样方式添加，接口返回三窗口（5h / 周 / 月）。**没有该套餐 key 时报错属预期**（该接口结构未做真机联调）。
-
-> ⚠️ **关于上面这些 `curl`**：全部 **26 个** `/dsh-whale/*` 路由都已接入 **DSH 浏览器信任栅栏**（`connection.requestRejection`）。
-> 因此**不带会话凭据的裸 `curl` 会返回 401**（伪造 `Host` 头则是 403）—— 这是预期行为，不是接口坏了。
-> 想验证接口是否存活，看返回 **401/403** 即说明路由已注册且栅栏在工作；在浏览器里访问同一条路径（带会话）才是 200。
-> 另外**自 0.3.15 起，写请求（`POST`/`PUT`/`PATCH`/`DELETE`）还必须是本机来源**（Host 为 `127.0.0.1`/`localhost`/`[::1]`），否则 403 —— 详见上方「安全边界」。
-
-## 常见问题
-
-- **安装失败，只看到 `exit 1` / `pnpm failed`**：这些是汇总错误，不能据此认定插件代码有错，也不能直接归因网络。若明确出现“找不到 pnpm / 不是内部或外部命令”（#145），先检查宿主安装器使用的包管理器与启动环境；桌面端尤其要区分宿主自带工具和终端 PATH 中的工具。诊断时请提供：
-  - 操作系统/架构、DSH（含桌面壳）和市场版本，实际 profile（`web` 或 `desktop`），首次安装还是升级。
-  - 安装入口（内置工具、界面或命令行）、执行的安装规格/命令、来源（npm / GitHub / 本地目录）、已安装版本与目标版本；Node、pnpm、npm、git 版本能确定的就写，不能确定的标为未知。
-  - 本次操作的错误码和**最早的底层报错及少量上下文**。优先在本机检查错误信息指向的 `.plugin-manager/logs/operation-*/pnpm.log`，再对照 `hub.log`；同时说明是否使用代理/镜像、失败请求的目标域名和状态码。`ERR_PNPM_ADDING_TO_ROOT`、`Invalid time value`、`Failed to fetch` 应分别定位，不按同一原因处理。
-  - **公开前先脱敏**：删除 API key、token、cookie、认证头、含凭据的 URL、个人目录用户名及无关会话内容；只保留定位所需的片段，不原样上传完整日志、凭据文件或整个 profile。没有足够证据时先保留当前安装和数据，不批量删除 `node_modules`、锁文件或修改全局 registry。相关issue由报告者验证效果后决定是否关闭。
-- **挂件不出现**：
-  - **Web（`dsh web`）**：确认安装命令成功；`dsh --profile web --dump-config` 里能看到 `dsh-whale-widget-lite`；重启 `dsh web` 后 F5。
-  - **官方桌面端**：先确认装对了 profile —— 桌面端读的是 **`desktop` profile**，**不能**用 `--profile web`（而 `--profile desktop` 会被 CLI 拒绝，这是设计如此）。正确入口见上面「**官方桌面端（Electron 客户端）请先看这一节**」，并用那里的**两条自检**判断是「没装到位」还是「装了但没渲染」。**新装也建议重开一次客户端**（issue #162：热生效不一定够）。
-- **本插件所有接口（`/dsh-whale/*`）的访问校验**：默认只接受**回环地址**（`127.0.0.1` / `localhost` / `[::1]`）的请求，并拒绝跨站标记（`Sec-Fetch-Site: cross-site`）与 Origin 和 Host 不同源的请求 —— 这是防「恶意网页读写本机接口」的信任栅栏（issue #92 / #136）。如果你把 `dsh web` 放在**反向代理或局域网地址**后面，请用环境变量声明允许的 Host（逗号分隔，可带端口），否则会被 403：
-  ```bash
-  DSHW_TRUSTED_HOSTS=dsh.example.com,10.0.0.5:3080 dsh web
-  ```
-- **图片/音效不显示、没声音**：确认插件包内 `assets/` 完整（`DSniang1.png`、`*.mp3`、`minecraft-exp-orb.wav` 等）；缺失时相关功能静默降级。
-- **装了 IDM / 迅雷 / Free Download Manager / Motrix 等下载管理器时，每次打开 DSH 都弹"下载确认框"，目标 URL 是挂件的音效**（issue #158）：这些管理器的浏览器集成会把页面里的音效请求当成下载任务抢走。**推荐做法：把本机地址加入它的站点排除列表**（IDM：`选项 → 文件类型 / 站点排除`，把 `127.0.0.1` 与 `localhost` 加进去；其它管理器同理，关键词是"排除本机地址 / 不监控该站点"）。关掉挂件音效开关并不能消除弹窗 —— 音效元素在页面初始化时就会建立。
-- **提问 / 授权时不响、也没泡泡**：这两个事件**默认开着**（默认**只冒泡、不响**）。想听声音就去「菜单 → 音效与提示 → 全局设置」，**点一下「提问提示」/「授权提示」那一行**把它展开，勾上「提问提示音效 / 授权提示音」那一行左侧的 `[✓]`（不勾 = 静音、但照旧冒泡），再在下拉里选一个音效；不需要提示就把该区入口行左边的总开关 `[✓]` 取消。（入口行右侧的摘要会实时显示当前配置。）
-- **余额报「未配置 DEEPSEEK_API_KEY」**：去 DSH 凭据里配置 API key；**或者**用「设置 → 账号与余额」登录 DeepSeek 账号（较新 DSH 支持）—— 没配 key 时插件会自动走账号态，不需要去 platform 建 key。
-- **余额拿到了、但提示「账本不可用 / 已停止写入以保护原记录」**：账本文件（`.dshw-usage.json`）被外部改坏或结构异常，插件**拒绝覆盖**它以免丢数据。先把它备份改名让插件重建，再按需用「余额校正」补账。
-- **保存设置报 `403` / 在别的机器上改了配置不生效**：0.3.15 起**写操作只能在运行 DSH 的那台机器上、用 `127.0.0.1`（本机地址）打开界面进行**。从局域网或反向代理访问时，读没问题、写会被拒。需要远端管理就用 `DSHW_ADMIN_HOSTS` 显式授权那台机器（见「凭据 → 安全边界」）。
-- **提示「该地址不是 … 的内置端点，已拒绝把凭据发出去」**：这是 0.3.15 的安全策略 —— **自定义接口地址默认拿不到凭据**。确认那是你自己的网关（New API / 自托管等）后，在**本机**打开面板，对该模型勾选「允许把凭据发送到自定义地址」。
-- **今日已用显示 `--`**：先等一次成功的余额观测；统计从该观测时刻开始，起点之前的消费不在此区间内。
-- **今日已用与官网有差异**：先核对同一账户、同一币种与同一统计区间；若有充值或其它余额调整，用「小鲸鱼记账 → DeepSeek（内置）→ 设置 → 余额校正」填写实际到账金额。余额接口只返回余额快照、不提供充值流水，充值与消费发生在同一次刷新间隔时需要实际到账金额才能校正。
-- **充值后消费数字没变**：这是预期行为——充值不会增加消费；数字上方会出现「待核对余额调整」，提示你补充本统计区间的累计到账金额。
-- **每轮消耗不显示**：确认「音效与提示 → 全局设置」里「每轮消耗提示」那一行**左边的 `[✓]`** 是勾上的（入口行右侧摘要会直接显示 `已关闭` 或当前配置）；一轮对话要完整结束（`turn/end`）才结算。余额变化泡泡与消耗泡泡抢层时，提醒会退化为居中卡片。
-- **每轮消耗泡泡的内容**：「音效与提示 → 全局设置」→ **展开「每轮消耗提示」** → 「编辑提示内容」（模块化，金额用 `{cost}`）；同一区里能设自动关闭秒数、提示音量与任务结束音效。
-- **任务结束音没响**：该开关**默认开着**（默认音是内置 **`A`**，另有内置的 Minecraft·经验球可选）；到「音效与提示 → 全局设置」→ **展开「每轮消耗提示」**，确认「任务结束音」那行左侧的 `[✓]` 是勾上的（取消勾选 = 静音）。若自定义片段文件被删，会回退/静音。
-- **提示音量调了没用 / 到底听谁的**：把「每轮消耗提示」那一行展开，拖动它自己的「**提示音量**」滑块 ⇒ 该事件的音量**立刻由它说了算**（入口行摘要从 `跟随按压音量 N%` 变成 `N%`）。**没拖过**时它跟随①区「按压音效」的音量 —— 摘要里会写明，滑块也显示实际生效值。想让某类提示更轻就把自己的滑块调小；想整体轻就调①区。点「恢复默认」会把这几条都退回"跟随①区"。（0.3.17 之前这个滑块确实不生效，是本版修好的。）
-- **保存后设置没生效 / 保存到底成没成**：0.3.17 起保存失败**不再静默** —— 点「保存」若写入失败，会自动重试一次，仍失败则弹出 `⚠ 设置保存失败：<原因>`（例如数据目录只读、接口被拦）。看到这条提示说明**这次改动没有落盘**，请按原因处理后再保存一次。
-- **等待提问 / 授权的气泡关不掉**：**点一下那个气泡即可收起**（同一条挂起不会再自动弹回；你回答/批准后，或下一次新的提问/授权到来时照常提示）。想让**点角色（鲸鱼）也能收起**提示气泡，去「音效与提示 → 全局设置」面板最下面勾上「**点按角色关闭提示气泡**」（默认关）。两处说明都收在旁边的 `?` 圈圈里。
-- **换了 / 删了 API key 之后，更早的记账天变成「本地估算 ¥0.00」**：记账按**密钥指纹分本**（一把 key 一本账），换 key 等于换了一本 —— 数据**没丢**，都在 `.dshw-usage.json` 的 `accounting.books` 里。当前版本已让界面把历史本里的日期正常显示（标注「已观测消费 · 历史账户」），并在「小鲸鱼记账」面板顶部提示「检测到 N 个记账本」；**两个本不会被相加**（插件无法判断两次是不是同一个账户），但同一天的明细可以在该面板的「每日与逐条明细」里逐日查看。
-- **手机上拖不动鲸鱼**：本版本已用触摸事件接管拖拽，请硬刷新页面拿到最新 `whale-widget.js`；仍不行请反馈浏览器型号。
-- **隐藏了菜单按钮怎么进菜单**：电脑端右键鲸鱼，手机端长按鲸鱼约 1.5 秒。
-- **改了前端代码不生效**：前端 `assets/whale-widget.js` 由宿主按 mtime 热读取，**硬刷新**（Ctrl+F5）即可；改了宿主 `lib/index.js` 必须**重启 `dsh web`**。
-- **模型名看不懂**：账本记录的是 API 模型 id；`deepseek-flash` 即 DeepSeek-V4.1-Flash，旧名 `deepseek-v4-flash` / `-vision-exp` 现在也由同一颗 V4.1-Flash 提供并按 Flash 计价（面板里已加标注）。
-
-## 定价表
-
-金额按 **CNY / 百万 tokens** 计，`[空闲时段, 高峰时段]`；高峰 = 工作日 9:00–12:00、14:00–18:00（北京时间），空闲价为高峰价的一半；2026-08-23 起周末全天按谷价。表在 `lib/index.js` 顶部 `PRICING` / `BASE_PRICE` / `PRO_PRICE`，官方调价时改这里。
-
-| 模型 | 缓存命中 | 缓存未命中 | 输出 |
-|---|---|---|---|
-| `deepseek-flash`（DeepSeek-V4.1-Flash） | 0.02 / 0.04 | 1 / 2 | 4 / 8 |
-| `deepseek-v4-pro`（V4 Pro） | 0.15 / 0.30 | 4.5 / 9.0 | 13.5 / 27.0 |
-
-> 旧模型名 `deepseek-v4-flash`、`deepseek-v4-flash-vision-exp` 仍可调用，按 Flash 价计费。
-
-## 开发与维护
-
-- 仓库里 `lib/index.js` 是宿主本体、`lib/accounting.mjs` 是记账内核（定点金额运算 + 观测/校正账本）、`assets/whale-widget.js` 是前端本体；宿主改动（含记账内核）需重启 `dsh web`，仅前端改动硬刷新页面即生效。
-- 完整规格、视觉参数、路由清单、架构结论与生成提示词见 [`whale-widget-prompt.md`](whale-widget-prompt.md)。
-- 本地联调：`dsh plugin --profile web add link:.` 后，改前端 → Ctrl+F5；改宿主 → 重启 `dsh web`。
-- 发布前自检（与 CI 同一组门禁）：`node tools/ci-audit.mjs`、`node tools/z-layer-audit.mjs assets/whale-widget.js`、`node --check lib/index.js`。注意 `ci-audit.mjs` 第 3 项需要 `npm` 在 PATH 上（没有 npm 会报「npm pack 失败」，其余四项照常跑）。
-
-### 开源前需要替换的占位
-
-本仓库从上游 fork 后即可直接使用，只剩少量**身份相关占位**：
-
-| 位置 | 现在 | 替换成 |
-|---|---|---|
-| `README.md` | `<your-github-name>`（5 处：安装表、GitHub 安装命令、AI 安装说明、资源包目录示例） | 你的 GitHub 用户名 |
-| `package.json` | `repository.url` / `bugs.url` / `homepage` 里的 `<your-github-name>` | 同上 |
-| `LICENSE` | 第 4 行 `Copyright (c) 2026 <your-name> (…fork: modifications only)` | 你的署名（**第 3 行上游版权必须保留**） |
-| `package.json` | `version: 0.4.2-lite.11` | 你的起始版本；发版走手动触发的 `.github/workflows/publish.yml`，发布前记得改 version |
-
-上游的作者信息、致谢与 issue/PR 链接**不要替换**（它们指向真实的历史贡献）。`assets/` 与 `icon.png` 的许可范围见 [`PROVENANCE.md`](PROVENANCE.md)：美术素材沿用上游的「as-is 随插件分发」，不因 fork 变成 MIT。
+MIT，与上游一致；版权信息见 [`LICENSE`](LICENSE)。
 
 ## 致谢
 
-- **Codex 版小鲸鱼的迁移与后续维护**：经协商，**Codex 端口已迁至独立仓库 [Codex-Whale-Public](https://github.com/Yang-huai406/Codex-Whale-Public)**（由 [@Yang-huai406](https://github.com/Yang-huai406) 维护）—— 迁移保留了开发历史、作者贡献与历代版本，并清理了旧图片中的非必要元数据；原作者 **月匠（MeteorNOX）** 与 **macOS 适配贡献者 [@1llysviel](https://github.com/1llysviel)** 的贡献一并保留。**已安装的用户无需因迁移重新安装**，后续请从新仓库获取更新。感谢这次把历史完整接过去的处理方式。
-- **0.3.17 的「②区『提示音量』滑块其实不生效 + ②区『冒泡提示』没人读」**由一位 **QQ 群友**（未留 GitHub 账号）做了一轮完整的代码分析后报告：他复现了"拖到最低仍出声"、定位到 `playTaskEndSound()` 读的是①区全局音量、并附了可复用的补丁与两个预打版压缩包供对比。**这两个都是真 bug**（第二个是我顺着他的思路查出来的），0.3.17 已按"解析器 + 三态音量"的方式修复（比补丁覆盖面更广：**音效组那条路也修了**），并新增了一条 CI 检查专门拦这类"控件有值、没有消费方"的问题。感谢他的报告。
-- **0.3.16 的「换 / 删 API key 后旧记账被分本隐藏」**（切换当天金额被覆盖、更早的天数退化成「本地估算」）由 GitHub 用户 [@0Sakura721](https://github.com/0Sakura721) 在 [#163](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/issues/163) 中报告，并**直接给出了根因位置**（`lib/index.js` 里用密钥哈希当账户标识、`accounting.mjs` 的 `observeBalance` / `currentBook` 只读 active 本）与数据佐证 —— 让这次能一次做实"数据没丢、只是没有入口"这个判断。0.3.16 据此修复（旧本日期照常显示并标注「已观测消费 · 历史账户」）。感谢他。
-- **0.3.16 的「下载管理器抢走挂件音效请求」**（IDM 等每次打开 DSH 弹下载框、关音效也照样弹）由 GitHub 用户 [@VaeKaras](https://github.com/VaeKaras) 在 [#158](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/issues/158) 中报告，复现步骤、被抢的 URL 形态与"关音效无效"的观察都很完整 —— README 据此新增该已知问题与站点排除做法。感谢他。
-- **官方桌面端「新装也可能需要重开客户端」**由 GitHub 用户 [@MengLs1620](https://github.com/MengLs1620) 在 [#162](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/issues/162) 中实测反馈，README 的生效方式据此补正。感谢他。
-- **「让鲸鱼娘响应任务状态并给出音效提示」**由 GitHub 用户 [@Jy-EggRoll](https://github.com/Jy-EggRoll) 在 [#160](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/issues/160) 中提出，并**提交了实现 PR [#161](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/161)**（其中 `GET /dsh-whale/wait.json` 的数据形状 `{ok, pending:{kind,id,ts}}` 与主线最终方案一致；本 README 的 `wait.json` 路由说明即采纳其写法）。0.3.16 的提问/授权提示音效与常驻气泡按主线方案落地（四入口面板 / 每事件音量与试听 / 抢占置顶）。感谢他，也欢迎他继续参与这个项目的工程化改进。
-- **0.3.15 的凭据安全修复**（写入自定义模型即可让宿主动用真实 API key 去请求任意地址，从而外带凭据）由 **B 站用户「星丶白羽莲」** 负责任地报告：把复现步骤、环境与前置条件一起给出，使这次能在**不打死自建网关这类正当用法**的前提下收紧边界。感谢他的支持。
-- **DSH 账号登录态读余额**（端点与鉴权头、凭据记录的位置、DSH 自身 `deepseekAccount` 服务的推荐调用方式，以及三个集成坑：账户标识字符集、赠金要计入基准、服务可能不存在）由 GitHub 用户 [@yybai25](https://github.com/yybai25) 在 [#157](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/issues/157) 中给出完整规格与**已在自己机器上验证过的参考实现**；**0.3.14 据此实现**（只调 DSH 服务、不接触账号令牌）。感谢他的贡献。
-- 充值记账修复方案（余额上升与下降分开记账、显式余额校正公式、按账户/币种隔离观测窗口、账本原子写入与迁移备份）由 GitHub 用户 [@Yang-huai406](https://github.com/Yang-huai406) 独立设计并实现为可运行的修复分支；**0.3.1 在该方案基础上移植合并**，并保留本项目既有的音效修复。感谢他的支持。
-- OpenCode Go 订阅额度（多窗口额度 `quota.json.windows`、按窗口展示与紧凑重置倒计时、「订阅额度」模块的窗口选择）由 GitHub 用户 [@ELFsay](https://github.com/ELFsay) 提交（[#99](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/99)），已合入 `main`。感谢他的贡献。
-- **历史合并 PR 的贡献者**（按合入顺序，均已进入本仓库代码 / 发布流程）：
-  - [@ztzpro](https://github.com/ztzpro)（[#1](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/1)）：把余额小鲸鱼挂件**改造成标准 DSH 插件包**（今天的 `cordis.patch.yml` + bundle 结构就来自这里）；
-  - [@under-the-ocean](https://github.com/under-the-ocean)（[#6](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/6) / [#7](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/7)）：push 触发**自动发布 npm**、升级 npm 以支持 Trusted Publishing（OIDC）—— 现在的发版流程仍是这套；
-  - [@21253soursweetlemon](https://github.com/21253soursweetlemon)（[#16](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/16) / [#18](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/18)）：gif 加载失败降级为文字台词、右缘滚动条避让、**锚点位置记忆**（窗口变化不悬空、能吸回原位 —— 位置系统的起点）；
-  - [@fangbm](https://github.com/fangbm)（[#15](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/15) / [#19](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/19) / [#31](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/31) / [#33](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/33) / [#46](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/46)）：多币种余额顺序稳定、每轮消耗泡泡两处缺陷、**周末全天谷价**、记账币种感知、发布时自动建 Release 并生成 PR changelog；
-  - [@xiaolinnnnnnn](https://github.com/xiaolinnnnnnn)（[#26](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/26)）：Windows 桌面端（Tauri v2）重构。
-
-## 许可证
-
-本项目**代码**基于 **MIT License** 开源，详见 [LICENSE](LICENSE)。
-
-⚠️ **`assets/` 下的美术素材（图片 / 动图 / 音效）不在 MIT 覆盖范围内**：它们由维护者提供或使用 AI 工具生成，按「原样（as-is）」随插件分发、仅供运行本插件使用，不授予再许可、也不声明为原创作品。逐项来源、元数据清理说明与权利主张（takedown）方式见 **[PROVENANCE.md](PROVENANCE.md)**。
+- 上游作者 [MeteorNOX](https://github.com/MeteorNOX) 与 `DeepSeek-Balance-Whale-Widget` 的所有贡献者
+- 小鲸鱼形象与音效素材的原作者
