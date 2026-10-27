@@ -6342,10 +6342,10 @@ function fillUsagePanel(d) {
   // ① 本机模型费用（所有模型的本地会话估算）
   // 「已观测消费」是 DeepSeek 账户口径（余额观测），已移到 小鲸鱼记账 → DeepSeek（内置）→ 设置 里，
   // 与「余额校正」放在一起，避免在这里被误读成"全模型合计"。
-  var modelTitle = uSectionTitle('本机模型费用', usageMoney(today.modelTotal, 'CNY'))
+  var modelTitle = uSectionTitle('本机模型费用 · 仅 DeepSeek 官方', usageMoney(today.modelTotal, 'CNY'))
   // 标题与下方模型列表之间不再画分隔线（列表本身有边框，够了）
   modelTitle.style.borderBottom = 'none'
-  modelTitle.title = '按本机 DSH 会话计算，不按账户余额比例缩放；两者覆盖范围不同。'
+  modelTitle.title = '只统计 DeepSeek 官方（内置）的本地会话估算；Command Code / OpenCode Go 是订阅额度制，价格按套餐折算，不参与这里统计。'
   wrap.appendChild(modelTitle)
   var todayBox = document.createElement('div')
   todayBox.className = 'dshwv-usage-scroll dshwv-usage-today'
@@ -6364,12 +6364,12 @@ function fillUsagePanel(d) {
   } else if ((today.total || 0) > 0) {
     var noM = document.createElement('div')
     noM.className = 'dshwv-usage-hint'
-    noM.textContent = '暂无本机会话费用明细；账户余额观测仍独立记账。'
+    noM.textContent = '暂无 DeepSeek 官方本机会话明细；订阅制厂商不参与统计。'
     todayBox.appendChild(noM)
   } else {
     var empty = document.createElement('div')
     empty.className = 'dshwv-usage-hint'
-    empty.textContent = '今日暂无消费记录'
+    empty.textContent = '今日暂无 DeepSeek 官方消费记录'
     todayBox.appendChild(empty)
   }
   // 列表高度不限制（随内容增长），下方「更多消费记录…」位置随内容移动
@@ -6379,8 +6379,9 @@ function fillUsagePanel(d) {
   sep7.style.borderTop = '1px solid rgba(32,49,112,.15)'
   sep7.style.margin = '6px 0'
   wrap.appendChild(sep7)
-  var t7 = uSectionTitle('近7天使用记录', usageMoney(d.total7, d.total7Currency))
+  var t7 = uSectionTitle('近7天使用记录 · 仅 DeepSeek 官方', usageMoney(d.total7, d.total7Currency))
   t7.style.borderBottom = 'none'
+  t7.title = '只统计 DeepSeek 官方（内置）的消费；Command Code / OpenCode Go 是订阅额度制，不参与这里统计。'
   wrap.appendChild(t7)
   var daysBox = document.createElement('div')
   daysBox.className = 'dshwv-usage-scroll'
@@ -6397,6 +6398,11 @@ function fillUsagePanel(d) {
     daysBox.appendChild(r)
   })
   wrap.appendChild(daysBox)
+  // v873：显式说明口径 —— 只统计 DeepSeek 官方，订阅制厂商不折算成金额
+  var scopeNote = document.createElement('div')
+  scopeNote.className = 'dshwv-usage-hint'
+  scopeNote.textContent = '仅统计 DeepSeek 官方；Command Code / OpenCode Go 为订阅额度制，金额不参与统计。'
+  wrap.appendChild(scopeNote)
   // ③ 更多
   var more = document.createElement('button')
   more.type = 'button'
