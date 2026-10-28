@@ -61,7 +61,7 @@ dsh plugin --profile desktop add @mars-sea/dsh-commandcode-provider@latest
 
 ## 版本
 
-当前版本：`0.4.2-lite.12`
+当前版本：`0.4.2-lite.13`
 
 - 上游基线：`v0.4.2`（commit `5247dd6`）
 - 同步上游：仓库保留 `upstream` remote 指向原仓库；上游发版后 rebase 到最新 tag，冲突集中在 `package.json` / `README` / `PROVENANCE.md` / `lib/index.js` / `assets/whale-widget.js` 五处。
