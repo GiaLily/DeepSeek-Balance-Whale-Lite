@@ -6980,12 +6980,17 @@ function usageTurnCostLinesForProvider() {
     return !/\{expense_(ds|local)\}/.test(t)
   })
 }
-// {cost} 的替换值:与旧版一致保留两位小数;缺失/非数一律 '--'
+// {cost} 的替换值:固定两位小数;不足 1 分向上取整到 0.01(0.008 / 0.001 都显示 0.01);缺失/非数一律 '--'
+// v891:与宿主 costTextOf() 的口径保持一致(这份只在新宿主没下发 costText 时兜底)
 // (注意 Number(null)===0,所以必须先判空,否则会显示 0.00)
 function usageCostValue(amount) {
   if (amount === null || amount === undefined || amount === '') return '--'
   var n = Number(amount)
-  return isFinite(n) ? n.toFixed(2) : '--'
+  if (!isFinite(n)) return '--'
+  if (n === 0) return '0.00'
+  if (n > 0 && n < 0.01) return '0.01'
+  // 补偿二进制浮点误差(1.005 * 100 === 100.49999999999999),让「半分」也能正常进位
+  return (Math.round((n + Number.EPSILON) * 100) / 100).toFixed(2)
 }
 // 提醒泡泡停留毫秒
 // v810（用户反馈"提醒几秒就消失、经常错过"）：**默认常驻**（返回 0 = 不布自动关闭计时器），
@@ -17673,6 +17678,15 @@ function bubbleRenderCostMods(amount) {
   // 金额文本自带币种符号（$ / ¥）：旧模板里写死的「¥ 」前缀要摘掉，避免出现「¥ $0.42」
   // 老宿主（v869 之前）不下发 costText ⇒ 这里补回 ¥ 前缀，保持人民币口径
   var costText = meta.costText
+  if (costText) {
+    // v891：宿主还没重启时下发的仍是旧口径（美元 < 0.01 会给 4 位小数，如 $0.0035）。
+    //   这里按同一规则再格式化一次（幂等），刷新页面就能看到「两位小数 + 不足 1 分按 1 分」。
+    var cnum = parseFloat(String(costText).replace(/[^0-9.\-]/g, ''))
+    if (isFinite(cnum)) {
+      var csym = String(costText).charAt(0) === '$' ? '$' : '¥'
+      costText = csym + usageCostValue(cnum)
+    }
+  }
   if (!costText) {
     var cv = usageCostValue(amount)
     costText = (cv === '--') ? '¥--' : ('¥' + cv)
