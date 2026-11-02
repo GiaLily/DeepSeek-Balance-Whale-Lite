@@ -23,18 +23,32 @@
 
 ## 安装
 
-桌面端（Electron 客户端）：
+### 桌面端（Electron 客户端）
 
-```powershell
-# 从本地源码安装（link 模式，改前端代码刷新即生效）
-dsh plugin --profile desktop add "link:D:/Coding/dsh-whale-widget-lite"
-```
+桌面端读的是 `desktop` profile，而 `dsh plugin` 命令行**按设计拒绝**操作它（会报 `profile "desktop" is managed exclusively by the Electron application`）。正确做法是在桌面端的会话里让 agent 用宿主内置的 `plugin_manager` 安装，`target` 填下面任一规格：
 
-或使用 `plugin_manager` 的 `install_bundle`，target 填 `link:D:/Coding/dsh-whale-widget-lite`。
+| 装法 | `target` | 说明 |
+|---|---|---|
+| 从 GitHub 装（推荐） | `github:GiaLily/DeepSeek-Balance-Whale-Lite` | 无需本地克隆；装的是 `main` 当前状态，不跟随已发布版本 |
+| 从本地源码装 | `link:D:/Coding/dsh-whale-widget-lite` | 开发用；改前端刷新即生效，改宿主需重启 |
 
 装完**重启 DSH 桌面客户端**（改宿主 `lib/index.js` 必须重启才生效；只改 `assets/whale-widget.js` 刷新页面即可）。
 
-其它安装方式（资源包 / GitHub / npm）见 [README.upstream.md](./README.upstream.md) 的「安装」一节，把包名换成 `dsh-whale-widget-lite` 即可。
+### Web 端（`dsh web`）
+
+```powershell
+# 从 GitHub 安装
+dsh plugin --profile web add github:GiaLily/DeepSeek-Balance-Whale-Lite
+
+# 本地开发用 link 模式（路径换成你自己的克隆位置）
+dsh plugin --profile web add "link:D:/path/to/dsh-whale-widget-lite"
+```
+
+装完重启 `dsh web`，浏览器按 `Ctrl+F5`。
+
+> 本包**尚未发布到 npm**（`dsh-whale-widget-lite` 在 registry 上目前是 404），所以暂时没有「`dsh plugin add dsh-whale-widget-lite`」这条最短命令。
+
+资源包（zip）/ 拷贝安装等其它方式见 [README.upstream.md](./README.upstream.md) 的「安装」一节，把包名换成 `dsh-whale-widget-lite` 即可。
 
 > ⚠️ 不要与上游 `dsh-whale-widget` 同时启用：两者共用同一份状态文件与 `/dsh-whale/*` 路由，会互相抢。
 
@@ -45,8 +59,10 @@ dsh plugin --profile desktop add "link:D:/Coding/dsh-whale-widget-lite"
 - GitHub：<https://github.com/Mars-Sea/dsh-commandcode-provider>
 - npm：<https://www.npmjs.com/package/@mars-sea/dsh-commandcode-provider>
 
+桌面端同样用宿主内置的 `plugin_manager` 安装（`target` 填 `@mars-sea/dsh-commandcode-provider@latest`）；Web 端：
+
 ```powershell
-dsh plugin --profile desktop add @mars-sea/dsh-commandcode-provider@latest
+dsh plugin --profile web add @mars-sea/dsh-commandcode-provider@latest
 ```
 
 装好后在 **设置 → Models → Command Code** 卡片里填 API key（或网页登录获取），再选模型即可。该插件注册的 provider id 是 `commandcode`，所以会话事件里 `source.provider` 就是 `commandcode`——本插件正是按这个标识识别 CmdC，并通过 DSH 官方凭据读取 `COMMANDCODE_API_KEY`，显示美元余额、5h / 周窗口与本轮花费。
