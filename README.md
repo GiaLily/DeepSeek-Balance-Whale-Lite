@@ -79,10 +79,11 @@ dsh plugin --profile web add @mars-sea/dsh-commandcode-provider@latest
 
 ## 版本
 
-当前版本：`0.4.2-lite.16`
+当前版本：`0.4.2-lite.17`
 
 - 上游基线：`v0.4.2`（commit `5247dd6`）
 - 同步上游：仓库保留 `upstream` remote 指向原仓库；上游发版后 rebase 到最新 tag，冲突集中在 `package.json` / `README` / `PROVENANCE.md` / `lib/index.js` / `assets/whale-widget.js` 五处。
+- `0.4.2-lite.17`：轮末消耗气泡**并入子智能体开销**（金额与 token 都加总），该轮有子智能体时末尾多一行 `（含子智能体）`（v893）。
 - `0.4.2-lite.16`：**撤销**「整体缩放」（v890 的 `uiScale`）—— 该功能多余，菜单回到只有「大小」一个缩放维度（v892）。
 - `0.4.2-lite.15`：气泡金额固定两位小数 + 不足 1 分按 1 分显示（v891）。
 
