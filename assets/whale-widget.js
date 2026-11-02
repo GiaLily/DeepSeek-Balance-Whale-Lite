@@ -17621,7 +17621,13 @@ function bubbleRenderCostMods(amount) {
       return cp
     })
   }
-  bubbleRenderModules(usageAlertModsResolved(lines, null, null, costText))
+  var mods = usageAlertModsResolved(lines, null, null, costText)
+  // v893（用户要求）：本轮数字里含子智能体开销时，末尾补一行说明；没有子智能体就不加。
+  //   注意这行是运行时追加的，不写进用户可编辑的模板，改模板不会把它弄丢。
+  if (meta.inclSub === true) {
+    mods.push({ type: 'text', text: '（含子智能体）', size: 2, color: '#9fb0d9' })
+  }
+  bubbleRenderModules(mods)
 }
 // 等待交互提示（v761 / #161 C5）：内容取 events.<kind>.lines（缺失/空 → 默认模板），
 // 走与预警/预算/消耗同一条模块渲染链路。`{session}` 在这里就替换成当前对话名
@@ -22845,6 +22851,8 @@ function pollLastTurn() {
             costText: typeof d.costText === 'string' && d.costText ? d.costText : '',
             model: typeof d.model === 'string' ? d.model : '',
             provider: typeof d.provider === 'string' ? d.provider : '',
+            // v893：本轮数字是否含子智能体开销（老宿主没有该字段 ⇒ 不显示那一行）
+            inclSub: d.inclSub === true,
           }
         } else {
           lastTurnCostMeta = null
