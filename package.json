@@ -25,12 +25,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/<your-github-name>/dsh-whale-widget-lite.git"
+    "url": "git+https://github.com/GiaLily/DeepSeek-Balance-Whale-Lite.git"
   },
   "bugs": {
-    "url": "https://github.com/<your-github-name>/dsh-whale-widget-lite/issues"
+    "url": "https://github.com/GiaLily/DeepSeek-Balance-Whale-Lite/issues"
   },
-  "homepage": "https://github.com/<your-github-name>/dsh-whale-widget-lite#readme",
+  "homepage": "https://github.com/GiaLily/DeepSeek-Balance-Whale-Lite#readme",
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
