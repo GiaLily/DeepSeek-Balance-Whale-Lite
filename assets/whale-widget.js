@@ -346,11 +346,6 @@ try {
 
 var MIN_SCALE = 0.6
 var MAX_SCALE = 2.5
-// 界面整体缩放（CSS zoom）的范围。与「大小」是两个维度：
-//   scale   = 本体相对大小（--dshw-scale，决定本体尺寸与气泡排版基准）
-//   uiScale = 整个界面一起缩放（菜单、对话框、提示，以及本体）
-var MIN_UISCALE = 0.6
-var MAX_UISCALE = 2.0
 var STEP = 0.1
 var CLICK_SQ = 9
 var REFRESH_MS = 60000
@@ -643,13 +638,6 @@ var css = [
   '.dshwv-text .dshwv-trow{flex:0 0 auto;margin:calc(var(--dshw-u) * 2.5) 0;line-height:1.05}',
   // v806：多模块拼成的行（峰谷、标题+档位等）在块与块之间留更大的呼吸感
   '.dshwv-text .dshwv-trowline{margin-top:calc(var(--dshw-u) * 5)}',
-  // v890（用户要求「一键等比例缩放本体、气泡、文字、菜单等所有内容」）：整体缩放用 CSS zoom。
-  //   zoom 会把布局尺寸与字号一起乘 —— 对话框在 flex 遮罩里居中仍然居中，不需要改任何 px。
-  //   ⚠️ 遮罩(mask)自身绝不能 zoom，否则盖不满整个屏幕；所以只缩放它的**直接子元素**（卡片）。
-  //   ⚠️ 本体(root)也不挂这个类：它的定位/翻转/拖拽全程用 rect 计算，zoom 会双重缩放；
-  //      本体走 --dshw-scale 通道放大（见 applyScaleVar）。
-  '.dshwv-uizoom{zoom:var(--dshw-ui-zoom,1)}',
-  '[class*="mask"] > *{zoom:var(--dshw-ui-zoom,1)}',
   // v838（用户报"安全区变窄不会让文字换行"）：**只有**用了自定义文字安全框的框才允许换行
   //   （内置经典框不挂这个类 ⇒ 历史外观不受影响；安全区本来就只管自定义框）
   // v844（用户要求）：**安全区优先限制左右，不限制上下** ——
@@ -1334,22 +1322,8 @@ function dshwBodyAppend(el) {
     // （v743 批量改写时曾误替换成自我递归，被 try/catch 吞掉后表现为"登记了但从未挂上"）
     document.body.appendChild(el)
     if (dshwBodyNodes.indexOf(el) < 0) dshwBodyNodes.push(el)
-    // v890：整体缩放 —— 除遮罩(mask)与本体(root)以外的浮层都挂 .dshwv-uizoom，
-    //   由 CSS zoom:var(--dshw-ui-zoom) 统一缩放。遮罩要盖满屏幕、本体走 --dshw-scale，都不 zoom。
-    try {
-      var cnz = String(el.className || '')
-      if (cnz.indexOf('mask') < 0 && cnz.indexOf('dshwv-root') < 0 && el.classList) el.classList.add('dshwv-uizoom')
-    } catch (err) {}
   } catch (err) {}
   return el
-}
-// v890：当前整体缩放系数（CSS zoom）。凡是「读 rect 再写 px」的地方都要除以它 ——
-//   否则 rect 里的值已经是放大后的视觉像素，写回 style 时会被再乘一次 zoom（双重缩放）。
-function dshwUiZoom() {
-  try {
-    var v = Number(getComputedStyle(document.documentElement).getPropertyValue('--dshw-ui-zoom'))
-    return isFinite(v) && v > 0 ? v : 1
-  } catch (err) { return 1 }
 }
 function dshwBodyDetach(el) {
   try {
@@ -2084,44 +2058,6 @@ var row1 = menuRow()
 row1.appendChild(menuLabel('大小'))
 row1.appendChild(scaleInput)
 row1.appendChild(scaleNumber)
-// v890（用户要求「一键等比例缩放本体、气泡、文字、菜单等所有内容」）：
-//   「大小」只管本体；这一行是**整体缩放** —— 菜单、对话框、提示、本体一起等比变化。
-var uiScaleInput = document.createElement('input')
-uiScaleInput.type = 'range'
-uiScaleInput.min = String(MIN_UISCALE)
-uiScaleInput.max = String(MAX_UISCALE)
-uiScaleInput.step = '0.05'
-uiScaleInput.className = 'dshwv-range'
-uiScaleInput.value = '1'
-uiScaleInput.title = '整体缩放：菜单、对话框、提示与本体一起等比变化（1.0 = 原始大小）'
-uiScaleInput.addEventListener('pointerdown', function () { root.style.transition = 'none' })
-uiScaleInput.addEventListener('input', function () { setUiScale(uiScaleInput.value) })
-uiScaleInput.addEventListener('change', function () { root.style.transition = ''; try { refreshFlip() } catch (err) {} })
-var uiScalePct = document.createElement('span')
-uiScalePct.className = 'dshwv-volpct'
-uiScalePct.textContent = '100%'
-uiScalePct.title = '整体缩放百分比'
-var uiScaleNumber = document.createElement('input')
-uiScaleNumber.type = 'number'
-uiScaleNumber.min = String(Math.round(MIN_UISCALE * 100))
-uiScaleNumber.max = String(Math.round(MAX_UISCALE * 100))
-uiScaleNumber.step = '5'
-uiScaleNumber.className = 'dshwv-number'
-uiScaleNumber.value = '100'
-uiScaleNumber.title = '整体缩放百分比（60–200）'
-uiScaleNumber.addEventListener('focus', function () { root.style.transition = 'none' })
-uiScaleNumber.addEventListener('blur', function () { root.style.transition = '' })
-uiScaleNumber.addEventListener('input', function () { setUiScale(Number(uiScaleNumber.value) / 100) })
-uiScaleNumber.addEventListener('change', function () {
-  setUiScale(Number(uiScaleNumber.value) / 100)
-  root.style.transition = ''
-  try { refreshFlip() } catch (err) {}
-})
-var rowUi = menuRow()
-rowUi.appendChild(menuLabel('界面'))
-rowUi.appendChild(uiScaleInput)
-rowUi.appendChild(uiScalePct)
-rowUi.appendChild(uiScaleNumber)
 // —— 音量滑块与百分比（v761 起搬进「提示与音效设置」面板，主菜单不再占行）——
 var volInput = document.createElement('input')
 volInput.type = 'range'
@@ -2217,7 +2153,6 @@ roleImportBtn.addEventListener('click', function (e) { e.stopPropagation(); role
 roleFileInput.addEventListener('change', function () { onRoleFileChosen(roleFileInput) })
 menuBox.appendChild(rowRole)
 menuBox.appendChild(row1)
-menuBox.appendChild(rowUi)
 menuBox.appendChild(row2)
 menuBox.appendChild(row6)
 // v762：「每轮消耗提示」整行**不再挂到主菜单**（菜单里已再无此行，配置入口移进「全局设置」面板）。
@@ -2413,12 +2348,9 @@ function showUsageSub() {
   var w0 = 300
   var h0 = 360
   try {
-    // v890：读 offsetWidth/offsetHeight（zoom 前的布局值）而不是 rect ——
-    //   menuBox 现被整体 zoom，rect 是放大后的视觉值，写回 style.width/height 会被再乘一次 zoom。
-    var mbw = menuBox.offsetWidth
-    var mbh = menuBox.offsetHeight
-    if (mbw > 0) w0 = Math.round(mbw)
-    if (mbh > 0) h0 = Math.round(mbh)
+    var mb = menuBox.getBoundingClientRect()
+    if (mb.width > 0) w0 = Math.round(mb.width)
+    if (mb.height > 0) h0 = Math.round(mb.height)
   } catch (err) {}
   menuBox.style.width = w0 + 'px'
   menuBox.style.maxWidth = w0 + 'px'
@@ -3059,11 +2991,9 @@ function showAboutSub() {
   aboutEnsurePanel()
   var w0 = 300, h0 = 360
   try {
-    // v890：同上 —— offset* 是 zoom 前的布局值，rect 会被再乘一次 zoom。
-    var mbw = menuBox.offsetWidth
-    var mbh = menuBox.offsetHeight
-    if (mbw > 0) w0 = Math.round(mbw)
-    if (mbh > 0) h0 = Math.round(mbh)
+    var mb = menuBox.getBoundingClientRect()
+    if (mb.width > 0) w0 = Math.round(mb.width)
+    if (mb.height > 0) h0 = Math.round(mb.height)
   } catch (err) {}
   // 锁定外层 menuBox 当前宽高；子视图占按钮上方区域并内部滚动（与 showUsageSub 完全同款）
   menuBox.style.width = w0 + 'px'
@@ -10236,21 +10166,18 @@ function qeditPlace(anchorRect, widthPx, preferAbove) {
   try {
     var vp = viewport()
     var box = qeditEl
-    // v890：box 被整体 zoom ⇒ 尺寸/坐标要在「视觉像素」空间算，写回 style 时除以 z。
-    var z = dshwUiZoom()
     var w = Math.max(180, Math.min(widthPx || 320, vp.w - 16))
     box.style.width = w + 'px'
     box.style.display = 'block'
-    var wVis = w * z
-    var hVis = (box.offsetHeight || 200) * z
-    var left = anchorRect.left + anchorRect.width / 2 - wVis / 2
-    left = Math.max(8, Math.min(left, vp.w - wVis - 8))
-    var top = preferAbove ? anchorRect.top - hVis - 8 : anchorRect.bottom + 6
+    var h = box.offsetHeight || 200
+    var left = anchorRect.left + anchorRect.width / 2 - w / 2
+    left = Math.max(8, Math.min(left, vp.w - w - 8))
+    var top = preferAbove ? anchorRect.top - h - 8 : anchorRect.bottom + 6
     if (preferAbove && top < 8) top = Math.min(8, anchorRect.bottom + 6)
-    if (top + hVis > vp.h - 8) top = Math.max(8, vp.h - hVis - 8)
+    if (top + h > vp.h - 8) top = Math.max(8, vp.h - h - 8)
     if (top < 8) top = 8
-    box.style.left = Math.round(left / z) + 'px'
-    box.style.top = Math.round(top / z) + 'px'
+    box.style.left = Math.round(left) + 'px'
+    box.style.top = Math.round(top) + 'px'
   } catch (err) {}
 }
 function qColorSelectBuild(current, onPick, opts) {
@@ -12456,9 +12383,6 @@ function dshwDropOpen(menuEl, anchorEl) {
     menuEl.classList.add('dshwv-rgbopen')
     var r = anchorEl.getBoundingClientRect()
     var vp = viewport()
-    // v890：rect 是**视觉像素**（已被整体 zoom 放大），而写 style.left/top/width 的值会被
-    //   再乘一次 zoom ⇒ 这里统一在写之前除以 z。比较/夹取仍用视觉像素，逻辑不变。
-    var z = dshwUiZoom()
     // 选择框与下拉菜单等宽:直接取触发按钮宽度,不做 150 保底放大,
     // 也不受 CSS 固定宽度/最大宽度(字体 220/配色 160/颜色 190 等)影响
     var w = Math.max(20, Math.round(r.width))
@@ -12469,19 +12393,17 @@ function dshwDropOpen(menuEl, anchorEl) {
         var rowHost = anchorEl && anchorEl.parentNode ? anchorEl.parentNode.parentNode : null
         if (rowHost && rowHost.querySelector) {
           var swEl = rowHost.querySelector('.dshwv-qcolorhost')
-          // v890：色板宽度也用 rect（offsetWidth 是 zoom 前的布局值，与 r.width 单位不同）
-          var swW = swEl && swEl.getBoundingClientRect ? swEl.getBoundingClientRect().width : 0
-          if (swEl && swW > 0) w = Math.max(w, Math.round(r.width + swW))
+          if (swEl && swEl.offsetWidth > 0) w = Math.max(w, Math.round(r.width + swEl.offsetWidth))
         }
       } catch (err) {}
     }
     if (w > vp.w - 16) w = Math.max(20, vp.w - 16)
-    menuEl.style.width = (w / z) + 'px'
+    menuEl.style.width = w + 'px'
     menuEl.style.maxWidth = 'none'
     var left = r.left
     if (left + w > vp.w - 8) left = Math.max(8, vp.w - w - 8)
-    menuEl.style.left = Math.round(left / z) + 'px'
-    menuEl.style.top = Math.round((r.bottom + 2) / z) + 'px'
+    menuEl.style.left = Math.round(left) + 'px'
+    menuEl.style.top = Math.round(r.bottom + 2) + 'px'
     // 下拉层级:高于当前所有可见弹窗/窗口(兜底不低于 26010)
     // v750（issue #131）：visibleTopZ() 单独 try/catch —— 算不出最高层也必须把层级抬上去，
     // 并且打一条 warn（原先异常被外层空 catch 吞掉，表现为"下拉点了没反应"且毫无线索）
@@ -14310,9 +14232,6 @@ try {
 // resize and size changes, keeping the widget glued to its anchored edge.
 var state = {
   scale: 1.5,
-  // v890：界面整体缩放（1 = 原始大小）。存进 .dshw-size.json 的 uiScale，
-  //   由 document.documentElement 上的 --dshw-ui-zoom 生效。
-  uiScale: 1,
   localToday: null, // v813：今日「本机模型费用」合计（CNY，含所有厂商的本地会话估算）
   localTodayCurrency: 'CNY',
   h: 'right',
@@ -18450,16 +18369,14 @@ function bubbleTplHelpToggle(m, anchor) {
     // 与 dshwvHintShow 同理:占位符说明弹层也要抬到当前可见窗口之上,否则在提醒编辑器里会被遮罩盖住
     try { dshwvTplHelpEl.style.zIndex = String(Math.max(26080, Math.round(visibleTopZ()) + 10)) } catch (err) {}
     var r = anchor ? anchor.getBoundingClientRect() : { left: 60, top: 120, right: 180, width: 100 }
+    var w = 252
     var vp = viewport()
-    // v890：弹层被整体 zoom ⇒ 宽度/高度换算成视觉像素，写回时除以 z。
-    var z = dshwUiZoom()
-    var w = 252 * z
     var left = Math.max(4, Math.min(r.right - w, vp.w - w - 4))
     var top = r.bottom + 4
-    var h = (dshwvTplHelpEl.offsetHeight || 120) * z
+    var h = dshwvTplHelpEl.offsetHeight || 120
     if (top + h > vp.h - 4) top = Math.max(4, r.top - h - 4)
-    dshwvTplHelpEl.style.left = Math.round(left / z) + 'px'
-    dshwvTplHelpEl.style.top = Math.round(top / z) + 'px'
+    dshwvTplHelpEl.style.left = Math.round(left) + 'px'
+    dshwvTplHelpEl.style.top = Math.round(top) + 'px'
   } catch (err) {}
 }
 // —— 通用「?」说明圈(v647):桌面悬浮即显示,点击固定/收起;触摸端点按开关 ——
@@ -18499,15 +18416,13 @@ function dshwvHintShow(html, anchor, pinned) {
   try {
     var r = anchor ? anchor.getBoundingClientRect() : { left: 60, top: 120, right: 180, bottom: 140 }
     var vp = viewport()
-    // v890：提示层被整体 zoom ⇒ 尺寸按视觉像素算，写回时除以 z。
-    var z = dshwUiZoom()
-    var w = (el.offsetWidth || 320) * z
-    var h = (el.offsetHeight || 120) * z
+    var w = el.offsetWidth || 320
+    var h = el.offsetHeight || 120
     var left = Math.max(4, Math.min(r.left, vp.w - w - 4))
     var top = r.bottom + 6
     if (top + h > vp.h - 4) top = Math.max(4, r.top - h - 6)
-    el.style.left = Math.round(left / z) + 'px'
-    el.style.top = Math.round(top / z) + 'px'
+    el.style.left = Math.round(left) + 'px'
+    el.style.top = Math.round(top) + 'px'
   } catch (err) {}
 }
 function dshwvAskDot(html) {
@@ -20012,7 +19927,7 @@ function configPayload() {
   //   宿主白名单、读侧合并、客户端回填都做了，唯独这里没发 ⇒ 宿主 pickB 走"沿用旧值(true)" ⇒ 永远存不住。
   //   与 v863 的 subagent.mute 是同一类"半截活"：新键必须走完 **四件套**
   //   ① 客户端 PUT 载荷 → ② 宿主写侧白名单 → ③ 宿主读侧合并 → ④ 客户端回填。
-  return JSON.stringify({ scale: state.scale, uiScale: state.uiScale, sound: soundOn, pressOn: pressOn !== false, vol: soundVol, soundSet: soundSet, usageMode: usageMode, peakMode: peakMode, bubbleOn: bubbleOn, turnCostOn: turnCostOn, turnCostCloseMs: turnCostCloseMs, scrollGapOn: scrollGapOn, scrollGapPx: scrollGapPx, menuBtnHide: menuBtnHide, codexStatsOn: codexStatsOn })
+  return JSON.stringify({ scale: state.scale, sound: soundOn, pressOn: pressOn !== false, vol: soundVol, soundSet: soundSet, usageMode: usageMode, peakMode: peakMode, bubbleOn: bubbleOn, turnCostOn: turnCostOn, turnCostCloseMs: turnCostCloseMs, scrollGapOn: scrollGapOn, scrollGapPx: scrollGapPx, menuBtnHide: menuBtnHide, codexStatsOn: codexStatsOn })
 }
 // 真正的 PUT：读响应 → 失败（网络异常 / HTTP!=200 / {ok:false}）静默重试一次 → 仍失败才提示
 function configPut(payload, retried) {
@@ -20167,30 +20082,26 @@ function setCodexStatsOn(v) {
 function scaleToDisplay(s) {
   return Math.round((s - MIN_SCALE) / ((MAX_SCALE - MIN_SCALE) / 19)) + 1
 }
-// v890：--dshw-scale 是「本体相对大小 × 界面整体缩放」的合成值。
-//   两个滑杆各自独立存盘（scale / uiScale），生效到 CSS 时相乘 ⇒ 本体跟着整体缩放一起变大。
-//   本体**不走** CSS zoom：它的定位/翻转/拖拽全程按 rect 计算，再叠 zoom 会双重缩放。
-function applyScaleVar() {
-  var s = Number(state.scale) > 0 ? Number(state.scale) : 1
-  var u = Number(state.uiScale) > 0 ? Number(state.uiScale) : 1
-  try { root.style.setProperty('--dshw-scale', String(Math.round(s * u * 1000) / 1000)) } catch (err) {}
-}
-// v890：界面整体缩放（菜单 / 对话框 / 提示一律 zoom:var(--dshw-ui-zoom)）
-function applyUiScaleVar() {
-  var u = Number(state.uiScale) > 0 ? Number(state.uiScale) : 1
-  try { document.documentElement.style.setProperty('--dshw-ui-zoom', String(u)) } catch (err) {}
-}
-// v890：缩放前后保持「本体贴住的那个角」不动（setScale / setUiScale 共用）。
-//   mutate 里改尺寸；这里负责测前后 rect、重算 left/top 并提交（过渡临时禁用，
-//   否则 r2 量到的是过渡起点 ⇒ 角会漂）。
-function resizeKeepCorner(mutate) {
+function setScale(v) {
+  var next = Math.round(Math.min(MAX_SCALE, Math.max(MIN_SCALE, Number(v))) * 10) / 10
+  // 缩放测量需要 left/top 立即到位：临时禁用过渡（滚轮/数字框路径没有
+  // 滑块 pointerdown 的 transition:none，否则 r2 测的是过渡起点导致错锚点）
   var prevTrans = root.style.transition
   root.style.transition = 'none'
   var rect = root.getBoundingClientRect()
-  // 未翻转时贴右下角、翻转后贴左下角：变大向屏幕内侧长，变小收回角上。
+  // fixed point: the whale's corner — bottom-right when unflipped, bottom-left
+  // when flipped. Growing extends the widget up-left / up-right from that
+  // corner; shrinking pulls it back toward the corner. The whale always hugs
+  // its corner while scaling.
   var fx = state.flip ? rect.left : rect.right
   var fy = rect.bottom
-  try { mutate() } catch (err) {}
+  state.scale = next
+  root.style.setProperty('--dshw-scale', String(next))
+  scaleInput.value = String(next)
+  scaleNumber.value = String(scaleToDisplay(next))
+  saveConfig()
+  // keep the corner fixed while resizing; the position correction applies
+  // instantly because the caller disables the transition for the whole drag
   var r2 = root.getBoundingClientRect()
   var vp = viewport()
   if (state.flip) {
@@ -20206,29 +20117,6 @@ function resizeKeepCorner(mutate) {
   requestAnimationFrame(function () {
     root.style.transition = prevTrans
   })
-}
-function setScale(v) {
-  var next = Math.round(Math.min(MAX_SCALE, Math.max(MIN_SCALE, Number(v))) * 10) / 10
-  resizeKeepCorner(function () {
-    state.scale = next
-    applyScaleVar()
-    scaleInput.value = String(next)
-    scaleNumber.value = String(scaleToDisplay(next))
-  })
-  saveConfig()
-}
-// v890：界面整体缩放（0.6–2.0）。只改一个数，菜单/对话框/提示/本体全部等比变化。
-function setUiScale(v) {
-  var next = Math.round(Math.min(MAX_UISCALE, Math.max(MIN_UISCALE, Number(v))) * 100) / 100
-  resizeKeepCorner(function () {
-    state.uiScale = next
-    applyUiScaleVar()
-    applyScaleVar()
-    uiScaleInput.value = String(next)
-    uiScalePct.textContent = Math.round(next * 100) + '%'
-    if (uiScaleNumber) uiScaleNumber.value = String(Math.round(next * 100))
-  })
-  saveConfig()
 }
 function setVol(v) {
   var next = Math.round(Math.min(1, Math.max(0, Number(v))) * 100) / 100
@@ -20602,18 +20490,15 @@ function positionMenu() {
     var r = root.getBoundingClientRect()
     var b = menuBtn.getBoundingClientRect()
     var vp = viewport()
-    // v890：menuBox 被整体 zoom（.dshwv-uizoom）⇒ 写 left/right/bottom 之前必须除以 z。
-    //   rect 与 viewport() 都是**视觉像素**，不除的话菜单会被推到 z 倍远的地方（放大后直接飞出屏幕）。
-    var z = dshwUiZoom()
     var onLeft = r.left + r.width / 2 < vp.w / 2
     // 菜单出现在按钮上方，锚定在按钮一侧：
     // 右侧 → 菜单右下角对齐按钮右上角；左侧 → 菜单左下角对齐按钮左上角
     if (onLeft) {
-      menuBox.style.left = (b.left / z) + 'px'
+      menuBox.style.left = b.left + 'px'
       menuBox.style.right = 'auto'
       menuBox.style.transformOrigin = 'bottom left'
     } else {
-      menuBox.style.right = ((vp.w - b.right) / z) + 'px'
+      menuBox.style.right = (vp.w - b.right) + 'px'
       menuBox.style.left = 'auto'
       menuBox.style.transformOrigin = 'bottom right'
     }
@@ -20621,7 +20506,7 @@ function positionMenu() {
     // 其顶部位于 root 底部往上 59.45% 处（= 距顶部 40.55%）。按钮顶边在
     // 素材顶部下方 4px，若菜单底边对齐按钮顶边会压住素材顶部，导致被菜单遮挡。
     var assetTop = r.bottom - r.height * 0.5945
-    menuBox.style.bottom = ((vp.h - assetTop + 6) / z) + 'px'
+    menuBox.style.bottom = (vp.h - assetTop) + 6 + 'px'
     menuBox.style.top = 'auto'
   } catch (err) {}
 }
@@ -20767,13 +20652,10 @@ function toggleRolePanel() {
     var vp = viewport()
     // 固定面板宽度（与触发按钮一致，最小 200px）：防止长名称把面板撑宽，
     // 超出部分由名称 ellipsis 省略 / 面板横向滚动
-    // v890：面板被整体 zoom ⇒ 布局宽度 = 视觉宽度 ÷ z，left/top 先在视觉空间算好再 ÷ z。
-    var zr = dshwUiZoom()
-    var panelWLay = Math.max(200, Math.round(b.width / zr))
-    var panelWVis = panelWLay * zr
-    rolePanel.style.width = panelWLay + 'px'
-    rolePanel.style.left = (Math.max(4, Math.min(b.left, vp.w - panelWVis - 4)) / zr) + 'px'
-    rolePanel.style.top = ((b.bottom + 6) / zr) + 'px'
+    var panelW = Math.max(200, Math.round(b.width))
+    rolePanel.style.width = panelW + 'px'
+    rolePanel.style.left = Math.max(4, Math.min(b.left, vp.w - panelW - 4)) + 'px'
+    rolePanel.style.top = (b.bottom + 6) + 'px'
     rolePanel.style.display = 'block'
     rolePanel.classList.add('dshwv-rolelist-open')
   } catch (err) {}
@@ -21273,13 +21155,10 @@ function toggleAudioGroupPanel() {
     var b = audioGroupBtn.getBoundingClientRect()
     var vp = viewport()
     // 固定面板宽度（与触发按钮一致，最小 200px）
-    // v890：面板被整体 zoom ⇒ 布局宽度 = 视觉宽度 ÷ z，left/top 视觉算好再 ÷ z。
-    var zr = dshwUiZoom()
-    var panelWLay = Math.max(200, Math.round(b.width / zr))
-    var panelWVis = panelWLay * zr
-    audioGroupPanel.style.width = panelWLay + 'px'
-    audioGroupPanel.style.left = (Math.max(4, Math.min(b.left, vp.w - panelWVis - 4)) / zr) + 'px'
-    audioGroupPanel.style.top = ((b.bottom + 6) / zr) + 'px'
+    var panelW = Math.max(200, Math.round(b.width))
+    audioGroupPanel.style.width = panelW + 'px'
+    audioGroupPanel.style.left = Math.max(4, Math.min(b.left, vp.w - panelW - 4)) + 'px'
+    audioGroupPanel.style.top = (b.bottom + 6) + 'px'
     audioGroupPanel.style.display = 'block'
     audioGroupPanel.classList.add('dshwv-audiolist-open')
     audioGroupPanelOpen = true
@@ -21430,13 +21309,10 @@ function toggleAudioSlotPanel(slot) {
     var b = btn.getBoundingClientRect()
     var vp = viewport()
     // 面板宽度与选择框（按钮）一致：按按钮实际宽度设置
-    // v890：面板被整体 zoom ⇒ 布局宽度 = 视觉宽度 ÷ z，left/top 视觉算好再 ÷ z。
-    var zr = dshwUiZoom()
-    var panelWLay = Math.max(120, Math.round(b.width / zr))
-    var panelWVis = panelWLay * zr
-    panel.style.width = panelWLay + 'px'
-    panel.style.left = (Math.max(4, Math.min(b.left, vp.w - panelWVis - 4)) / zr) + 'px'
-    panel.style.top = ((b.bottom + 4) / zr) + 'px'
+    var panelW = Math.max(120, Math.round(b.width))
+    panel.style.width = panelW + 'px'
+    panel.style.left = Math.max(4, Math.min(b.left, vp.w - panelW - 4)) + 'px'
+    panel.style.top = (b.bottom + 4) + 'px'
     panel.style.display = 'block'
   } catch (err) {}
 }
@@ -22758,19 +22634,9 @@ function sizeCfgApply(d) {
     try { if (d) setVersionLabel(d.versionLabel || d.version) } catch (err) {}
     if (d && typeof d.scale === 'number' && d.scale >= MIN_SCALE - 0.1 && d.scale <= MAX_SCALE + 0.1) {
       state.scale = d.scale
-      applyScaleVar()
+      root.style.setProperty('--dshw-scale', String(d.scale))
       scaleInput.value = String(d.scale)
       scaleNumber.value = String(scaleToDisplay(d.scale))
-      settle()
-    }
-    // v890：整体缩放回填（缺字段时沿用内存里的值，绝不被冲回 1）
-    if (d && typeof d.uiScale === 'number' && d.uiScale >= MIN_UISCALE - 0.01 && d.uiScale <= MAX_UISCALE + 0.01) {
-      state.uiScale = d.uiScale
-      applyUiScaleVar()
-      applyScaleVar()
-      uiScaleInput.value = String(d.uiScale)
-      uiScalePct.textContent = Math.round(d.uiScale * 100) + '%'
-      if (uiScaleNumber) uiScaleNumber.value = String(Math.round(d.uiScale * 100))
       settle()
     }
     // v866：按压/松开音的独立开关（缺字段时沿用现有值，绝不落默认 —— 与宿主 issue #97 的约定一致）
