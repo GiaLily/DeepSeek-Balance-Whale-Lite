@@ -20258,6 +20258,9 @@ function setSoundSet(v) {
 var SQUISH = 'scaleY(0.88) scaleX(1.05)'
 // 极短轻点的 down/up 可能落在同一帧：补上压扁起点后立即回弹，不延迟松手复位。
 var PRESS_VISUAL_TAP_MS = 32
+// v894：轻点「两帧复位」计划的代次。新的一次按下会 ++ 它，让上一轮还没执行完的
+// afterStyleFlush 回调自行作废，避免半路把 transform 抢回去、把新的按压吃掉。
+var pressReleaseToken = 0
 var pressVisualStartedAt = 0
 var pressAudio = null
 var releaseAudio = null
@@ -20376,6 +20379,7 @@ function playReleaseAt(delaySec) {
 }
 function pressDown() {
   pressVisualStartedAt = performance.now()
+  pressReleaseToken++ // 作废上一次轻点留下的两帧复位计划
   body.style.transform = SQUISH
   pressing = true
   // v868（用户报"取消勾选按压音效没效果"）：pressOn 以前只是存了个状态、**没接到播放上**。
@@ -20383,17 +20387,41 @@ function pressDown() {
   if (pressOn === false) return
   playPress()
 }
+// v894：把 fn 排到「这一帧的样式计算与提交之后」执行（rAF 回调仍在绘制前，再套一个宏任务
+// 让出这一帧）。这样既不读 offsetWidth（不强制同步布局），也不会把这一帧整个丢掉。
+function afterStyleFlush(fn) {
+  var run = function () { try { fn() } catch (err) {} }
+  try {
+    if (document.hidden) { setTimeout(run, 16); return }
+    requestAnimationFrame(function () { setTimeout(run, 0) })
+  } catch (err) { setTimeout(run, 16) }
+}
 function pressUp() {
   if (performance.now() - pressVisualStartedAt < PRESS_VISUAL_TAP_MS) {
+    // v894（卡顿修复）：极短轻点（按下与松开可能落在同一帧）要「先看到压扁、再弹回」，
+    // 但不能用强制同步布局去提交那一帧 —— 老实现的 `void body.offsetWidth` 会把当前帧的
+    // 提交推迟到整棵文档重排/重绘完成之后（长会话、复杂选择器下就是几十到几百毫秒），
+    // 用户看到的就是「鲸鱼卡在压扁状态，过一会儿才弹回」。改成两帧节拍，全程零强制布局：
+    //   ① transition:none 下把 SQUISH 留在样式里（与刚才同值，不产生动画）
+    //   ② 下一帧恢复过渡（transform 没变 ⇒ 不会重新触发动画）
+    //   ③ 再下一帧写回 1，由原有 CSS 弹簧过渡接管（transform 过渡跑在合成器上，主线程再忙也不掉帧）
     var previousTransition = body.style.transition
+    var token = ++pressReleaseToken
     body.style.transition = 'none'
     body.style.transform = SQUISH
-    // 提交压扁样式，让同帧松手也能从这里启动原有 CSS 回弹过渡。
-    void body.offsetWidth
-    body.style.transition = previousTransition
+    afterStyleFlush(function () {
+      if (token !== pressReleaseToken || pressing) return
+      body.style.transition = previousTransition
+      afterStyleFlush(function () {
+        if (token !== pressReleaseToken || pressing) return
+        body.style.transform = 'scaleY(1) scaleX(1)'
+      })
+    })
+    pressing = false
+  } else {
+    body.style.transform = 'scaleY(1) scaleX(1)'
+    pressing = false
   }
-  body.style.transform = 'scaleY(1) scaleX(1)'
-  pressing = false
   // v868：静音按压时松开音也不响（顺手把 releasePlayed 标记收干净，避免下次误触发）
   if (pressOn === false) {
     try { releasePlayed = true } catch (err) {}
@@ -22081,6 +22109,12 @@ audioEditPressBtn.addEventListener('click', function (e) { e.stopPropagation(); 
 audioEditReleaseBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleAudioSlotPanel('release') })
 
 var hitCanvas = null
+// v894：命中图的 2D 上下文只取一次并缓存。原来每次 isWhaleHit() 都重取一遍
+// （pointerdown/up/click 各一次），且没带 willReadFrequently —— 浏览器会把 getImageData
+// 当成偶发回读，走「GPU 画好 → 同步读回 CPU」的慢路径（控制台那条 "Multiple readback
+// operations ... are faster with the willReadFrequently" 警告就是它）。命中判定在点击链的
+// 最前面，这一下卡住同样会推迟回弹帧。
+var hitCtx = null
 var hitReady = false
 var hitFailed = false // 命中图加载失败（如图片 404/资源缺失）：退回矩形区域判定，绝不吞掉整页事件
 function setupHitTest(url) {
@@ -22088,12 +22122,14 @@ function setupHitTest(url) {
     hitCanvas = document.createElement('canvas')
     hitCanvas.width = 610
     hitCanvas.height = 610
+    hitCtx = null
     hitReady = false
     hitFailed = false
     var probe = new Image()
     probe.onload = function () {
       try {
-        var ctx = hitCanvas.getContext('2d')
+        var ctx = hitCanvas.getContext('2d', { willReadFrequently: true })
+        hitCtx = ctx
         // 按 object-fit:contain + object-position:right bottom 的实际几何绘制，
         // 使非正方形（如 GIF 动图）的命中区域与显示一致
         var iw = probe.width || 610
@@ -22174,7 +22210,8 @@ function convexHull(pts) {
 }
 function buildHitClipPath() {
   try {
-    var c = hitCanvas && hitCanvas.getContext ? hitCanvas.getContext('2d') : null
+    var c = hitCtx || (hitCanvas && hitCanvas.getContext ? hitCanvas.getContext('2d', { willReadFrequently: true }) : null)
+    if (c) hitCtx = c
     if (!c) return ''
     var data = c.getImageData(0, 0, 610, 610).data // 只读一次（1.5MB），别逐行读
     var pts = []
@@ -22214,7 +22251,7 @@ function isWhaleHit(e) {
     if (state.flip) lx = 610 - lx
     var data
     try {
-      data = hitCanvas.getContext('2d').getImageData(Math.floor(lx), Math.floor(ly), 1, 1).data
+      data = (hitCtx || hitCanvas.getContext('2d', { willReadFrequently: true })).getImageData(Math.floor(lx), Math.floor(ly), 1, 1).data
     } catch (err) {
       // v756（issue #144）：画布读不出来（隐私保护/跨域污染）→ 立刻降级为矩形判定，
       // 并且**记住**这个状态，后续调用直接走矩形，不再每次抛错。
@@ -22522,8 +22559,14 @@ function endDrag(e, clickAllowed, cancelled) {
   if (clickAllowed && !drag.moved) {
     // 长按刚唤出菜单:这次抬手不再当作点击(避免顺带弹出余额泡)
     if (longPressRecent()) return
-    whaleClick()
-    refresh(true)
+    // v894（卡顿修复）：点击之后的活（清场、重建气泡行、量框、取数）不再同步跟在这一帧里。
+    // 它们原本紧跟在 pressUp() 后面跑，浏览器必须等这些活干完才提交第一帧 ⇒ 回弹过渡被整段
+    // 压住，视觉上就是「鲸鱼卡在压扁状态，直到气泡弹出来」。现在先把这一帧让给回弹动画，
+    // 下一帧再干活：动画照常、气泡晚几十毫秒出现（正是用户要的顺序）。
+    afterStyleFlush(function () {
+      whaleClick()
+      refresh(true)
+    })
     return
   }
   var dx = e.clientX - drag.startX
